@@ -8,9 +8,14 @@
     "preview": "vite preview --host"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
     "vite": "^5.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   }
 }
