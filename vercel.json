@@ -5,3 +5,9 @@
   "outputDirectory": "dist",
   "git": { "deployOnPush": true }
 }
+{
+  "version": 2,
+  "buildCommand": "npm ci && npm run build",
+  "outputDirectory": "dist",
+  "routes": [{ "src": "/(.*)", "dest": "/" }]
+}
