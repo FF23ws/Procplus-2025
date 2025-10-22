@@ -1,34 +1,36 @@
-import React from 'react'
-import { Routes, Route, Link } from 'react-router-dom'
 
-function Home() {
-  return (
-    <div style={{ padding: 24 }}>
-      <h1>Procplus</h1>
-      <p>Plataforma de procurement (MVP).</p>
-      <nav style={{ display: 'flex', gap: 12 }}>
-        <Link to="/">Home</Link>
-        <Link to="/login">Login</Link>
-        <Link to="/dashboard">Dashboard</Link>
-      </nav>
-    </div>
-  )
-}
+import React, { Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 
-function Login() {
-  return <h2 style={{ padding: 24 }}>Login (breve)</h2>
-}
-
-function Dashboard() {
-  return <h2 style={{ padding: 24 }}>Dashboard (rota protegida em breve)</h2>
-}
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import TendersList from './pages/TendersList';
+import TenderCreate from './pages/TenderCreate';
+import Suppliers from './pages/Suppliers';
+import Settings from './pages/Settings';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-    </Routes>
-  )
+    <Suspense fallback={<p style={{padding:20}}>A carregar…</p>}>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="login" element={<Login />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="tenders" element={<TendersList />} />
+            <Route path="tenders/novo" element={<TenderCreate />} />
+            <Route path="suppliers" element={<Suppliers />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          <Route path="home" element={<Navigate to='/' replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </Suspense>
+  );
 }

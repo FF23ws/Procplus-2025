@@ -4,10 +4,9 @@ import { Link } from 'react-router-dom';
 
 export default function NotFound(){
   return (
-    <section className="notfound">
-      <h2>404</h2>
-      <p>Página não encontrada.</p>
-      <Link className="btn" to="/">Voltar à Home</Link>
+    <section>
+      <h2>404 — Página não encontrada</h2>
+      <Link to='/'>Voltar ao início</Link>
     </section>
   );
 }

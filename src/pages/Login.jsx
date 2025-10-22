@@ -1,37 +1,33 @@
 
-import React, { useContext, useState } from 'react';
-import { LangContext, AuthContext } from '../App.jsx';
-import pt from '../i18n/pt.json';
-import en from '../i18n/en.json';
-import fr from '../i18n/fr.json';
-import es from '../i18n/es.json';
-import { useNavigate } from 'react-router-dom';
-
-const dict = { pt, en, fr, es };
+import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Login(){
-  const { lang } = useContext(LangContext);
-  const { setAuthed } = useContext(AuthContext);
-  const t = dict[lang];
-  const nav = useNavigate();
   const [email, setEmail] = useState('');
-  const [pwd, setPwd] = useState('');
+  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/dashboard';
 
-  function onSubmit(e){
+  const onSubmit = (e)=>{
     e.preventDefault();
-    if(email && pwd){
-      setAuthed(true);
-      nav('/dashboard');
+    if(email && password){
+      localStorage.setItem('token', 'demo');
+      navigate(from, { replace:true });
     }
-  }
+  };
 
   return (
-    <section className="auth">
-      <h2>{t.login_title}</h2>
-      <form onSubmit={onSubmit} className="form">
-        <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-        <input placeholder="Palavra-passe" type="password" value={pwd} onChange={e=>setPwd(e.target.value)} />
-        <button className="btn" type="submit">{t.login_btn}</button>
+    <section style={{maxWidth:420}}>
+      <h2>Login</h2>
+      <form onSubmit={onSubmit} style={{display:'grid', gap:12}}>
+        <label>Email
+          <input value={email} onChange={e=>setEmail(e.target.value)} type='email' required />
+        </label>
+        <label>Palavra-passe
+          <input value={password} onChange={e=>setPassword(e.target.value)} type='password' required />
+        </label>
+        <button type='submit'>Entrar</button>
       </form>
     </section>
   );
