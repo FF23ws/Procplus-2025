@@ -1,12 +1,11 @@
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+// base './' garante paths relativos no bundle (ok para Vercel + subpaths)
 export default defineConfig({
   plugins: [react()],
-  base: './', // <--- Importante! Força caminhos relativos no build
+  base: './',
   build: {
-    outDir: 'dist',
-  },
+    outDir: 'dist'
+  }
 })

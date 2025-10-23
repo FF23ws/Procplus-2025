@@ -1,36 +1,67 @@
+import React from 'react'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Link,
+  Navigate,
+} from 'react-router-dom'
 
-import React, { Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
+// páginas simples (placeholder)
+function Home() {
+  return (
+    <section style={{ padding: 24 }}>
+      <h1>Procplus</h1>
+      <p>Plataforma de procurement (MVP).</p>
+      <nav style={{ display: 'flex', gap: 12 }}>
+        <Link to="/">Home</Link>
+        <Link to="/login">Login</Link>
+        <Link to="/dashboard">Dashboard</Link>
+      </nav>
+    </section>
+  )
+}
 
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import TendersList from './pages/TendersList';
-import TenderCreate from './pages/TenderCreate';
-import Suppliers from './pages/Suppliers';
-import Settings from './pages/Settings';
-import NotFound from './pages/NotFound';
+function Login() {
+  return (
+    <section style={{ padding: 24 }}>
+      <h2>Login</h2>
+      <p>(colocar formulário real depois)</p>
+      <Link to="/">Voltar</Link>
+    </section>
+  )
+}
+
+function Dashboard() {
+  return (
+    <section style={{ padding: 24 }}>
+      <h2>Dashboard</h2>
+      <p>(widgets / métricas aqui)</p>
+      <Link to="/">Voltar</Link>
+    </section>
+  )
+}
+
+function NotFound() {
+  return (
+    <section style={{ padding: 24 }}>
+      <h2>404</h2>
+      <p>Página não encontrada.</p>
+      <Link to="/">Ir para Home</Link>
+    </section>
+  )
+}
 
 export default function App() {
   return (
-    <Suspense fallback={<p style={{padding:20}}>A carregar…</p>}>
+    <BrowserRouter>
       <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="login" element={<Login />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="tenders" element={<TendersList />} />
-            <Route path="tenders/novo" element={<TenderCreate />} />
-            <Route path="suppliers" element={<Suppliers />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-          <Route path="home" element={<Navigate to='/' replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
+        <Route index element={<Home />} />
+        <Route path="/home" element={<Navigate to="/" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
-    </Suspense>
-  );
+    </BrowserRouter>
+  )
 }
