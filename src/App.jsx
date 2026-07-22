@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import ProcurementWizard from './pages/ProcurementWizard.jsx'
 import NotFound from './pages/NotFound.jsx'
 import './styles.css'
 
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
+      <Route path="/procurement/new" element={<Protected><ProcurementWizard /></Protected>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
