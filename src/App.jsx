@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { getSession, onAuthStateChange, sendPasswordReset, signIn, signInWithGoogle, signOut, supabaseConfigured, updatePassword } from './lib/supabase.js'
+import OrganizationPage from './OrganizationPage.jsx'
 
 const tenders = [
   { ref: 'PP-2026-014', title: 'Aquisição de equipamentos informáticos', fund: 'União Europeia', value: '2.480.000 MZN', status: 'Em avaliação' },
@@ -130,8 +131,10 @@ function Layout() {
     <aside>
       <div className="logo light small">P<span>+</span><b>procplus</b></div>
       <nav>
-        {['Visão geral', 'Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Relatórios'].map((x, i) =>
-          <NavLink key={x} to={i ? `/app/${x.toLowerCase()}` : '/app'}>◫ <span>{x}</span>{x === 'Aprovações' && <em>4</em>}</NavLink>
+        <NavLink end to="/app">◫ <span>Visão geral</span></NavLink>
+        <NavLink to="/app/organizacao">◫ <span>Organização</span></NavLink>
+        {['Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Relatórios'].map(x =>
+          <NavLink key={x} to={`/app/${x.toLowerCase()}`}>◫ <span>{x}</span>{x === 'Aprovações' && <em>4</em>}</NavLink>
         )}
       </nav>
       <div className="org"><b>ADPP Moçambique</b><small>Plano Enterprise</small></div>
@@ -141,6 +144,7 @@ function Layout() {
       <header><div><small>QUINTA-FEIRA, 23 DE JULHO</small><h2>Bom dia, Fernando</h2></div><div className="avatar">FF</div></header>
       <Routes>
         <Route index element={<Dashboard />} />
+        <Route path="organizacao" element={<OrganizationPage />} />
         <Route path="*" element={<ComingSoon />} />
       </Routes>
     </section>
