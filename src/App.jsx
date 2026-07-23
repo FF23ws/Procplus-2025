@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { getSession, onAuthStateChange, sendPasswordReset, signIn, signInWithGoogle, signOut, supabaseConfigured, updatePassword } from './lib/supabase.js'
 import OrganizationPage from './OrganizationPage.jsx'
+import ProcurementPage from './ProcurementPage.jsx'
 
 const tenders = [
   { ref: 'PP-2026-014', title: 'Aquisição de equipamentos informáticos', fund: 'União Europeia', value: '2.480.000 MZN', status: 'Em avaliação' },
@@ -145,6 +146,7 @@ function Layout() {
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="organizacao" element={<OrganizationPage />} />
+        <Route path="concursos" element={<ProcurementPage />} />
         <Route path="*" element={<ComingSoon />} />
       </Routes>
     </section>
