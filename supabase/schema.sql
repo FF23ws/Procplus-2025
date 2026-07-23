@@ -1,0 +1,16 @@
+create extension if not exists "pgcrypto";
+create type public.organization_role as enum ('owner','admin','procurement_manager','procurement_officer','evaluator','approver','finance','auditor','viewer');
+create table public.organizations (id uuid primary key default gen_random_uuid(),name text not null,legal_name text,nuit text,country_code text not null default 'MZ',organization_type text not null check(organization_type in('ngo','company','government')),can_buy boolean not null default true,can_supply boolean not null default false,subscription_plan text not null default 'trial',created_at timestamptz not null default now());
+create table public.profiles (id uuid primary key references auth.users(id) on delete cascade,full_name text,phone text,locale text not null default 'pt-MZ',created_at timestamptz not null default now());
+create table public.organization_members (organization_id uuid not null references public.organizations(id) on delete cascade,user_id uuid not null references public.profiles(id) on delete cascade,role public.organization_role not null default 'viewer',active boolean not null default true,joined_at timestamptz not null default now(),primary key(organization_id,user_id));
+create table public.funding_rules (id uuid primary key default gen_random_uuid(),organization_id uuid references public.organizations(id) on delete cascade,name text not null,origin text not null check(origin in('american_government','eu','mozambique_government','international','internal','other')),currency text not null default 'USD',rules jsonb not null default '{}'::jsonb,active boolean not null default true,created_at timestamptz not null default now());
+alter table public.organizations enable row level security;
+alter table public.profiles enable row level security;
+alter table public.organization_members enable row level security;
+alter table public.funding_rules enable row level security;
+create policy "own profile" on public.profiles for all using(id=auth.uid());
+create policy "member organizations" on public.organizations for select using(exists(select 1 from public.organization_members m where m.organization_id=id and m.user_id=auth.uid() and m.active));
+create policy "member memberships" on public.organization_members for select using(user_id=auth.uid());
+create policy "member funding rules" on public.funding_rules for select using(exists(select 1 from public.organization_members m where m.organization_id=funding_rules.organization_id and m.user_id=auth.uid() and m.active));
+create or replace function public.handle_new_user() returns trigger language plpgsql security definer set search_path=public as $$ begin insert into public.profiles(id,full_name) values(new.id,coalesce(new.raw_user_meta_data->>'full_name',new.email));return new;end;$$;
+create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();

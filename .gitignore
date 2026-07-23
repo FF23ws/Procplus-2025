@@ -1,11 +1,4 @@
-# Node / Vite
 node_modules
 dist
-*.local
-
-# Vercel
-.vercel
-
-# OS
-.DS_Store
-Thumbs.db
+.env
+.env.local
