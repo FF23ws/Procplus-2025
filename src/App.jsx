@@ -5,6 +5,7 @@ import OrganizationPage from './OrganizationPage.jsx'
 import ProcurementPage from './ProcurementPage.jsx'
 import SuppliersPage from './SuppliersPage.jsx'
 import ApprovalsPage from './ApprovalsPage.jsx'
+import ContractsPage from './ContractsPage.jsx'
 
 // Production entrypoint: organization, procurement and supplier workspaces.
 const tenders = [
@@ -151,6 +152,7 @@ function Layout() {
         <Route path="organizacao" element={<OrganizationPage />} />
         <Route path="concursos" element={<ProcurementPage />} />
         <Route path="fornecedores" element={<SuppliersPage />} />
+        <Route path="contratos" element={<ContractsPage />} />
         <Route path="aprovações" element={<ApprovalsPage />} />
         <Route path="*" element={<ComingSoon />} />
       </Routes>
