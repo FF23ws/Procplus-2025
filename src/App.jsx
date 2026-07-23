@@ -5,6 +5,7 @@ import OrganizationPage from './OrganizationPage.jsx'
 import ProcurementPage from './ProcurementPage.jsx'
 import SuppliersPage from './SuppliersPage.jsx'
 
+// Production entrypoint: organization, procurement and supplier workspaces.
 const tenders = [
   { ref: 'PP-2026-014', title: 'Aquisição de equipamentos informáticos', fund: 'União Europeia', value: '2.480.000 MZN', status: 'Em avaliação' },
   { ref: 'PP-2026-012', title: 'Serviços de transporte e logística', fund: 'Fundos próprios', value: '870.000 MZN', status: 'Publicado' },
