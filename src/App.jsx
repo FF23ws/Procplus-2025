@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { signIn, signInWithGoogle, signOut, supabaseConfigured } from './lib/supabase.js'
 
 const tenders = [
   { ref: 'PP-2026-014', title: 'Aquisição de equipamentos informáticos', fund: 'União Europeia', value: '2.480.000 MZN', status: 'Em avaliação' },
@@ -10,11 +11,15 @@ const tenders = [
 function Login() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
-  const submit = (e) => {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const submit = async (e) => {
     e.preventDefault()
-    if (!email) return
-    localStorage.setItem('procplus_session', email)
-    navigate('/app')
+    setError(''); setLoading(true)
+    try { await signIn(email, password); navigate('/app') }
+    catch (err) { setError(err.message || 'Não foi possível iniciar a sessão.') }
+    finally { setLoading(false) }
   }
   return <main className="login-page">
     <section className="brand-panel">
@@ -33,10 +38,11 @@ function Login() {
         <h2>Iniciar sessão</h2>
         <p className="muted">Aceda ao espaço seguro da sua organização.</p>
         <label>E-mail profissional<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nome@organizacao.org" required /></label>
-        <label>Palavra-passe<input type="password" placeholder="••••••••" required /></label>
-        <button className="primary">Entrar na plataforma</button>
-        <button type="button" className="google">G&nbsp;&nbsp; Continuar com Google</button>
-        <p className="note">A autenticação definitiva será ligada ao Supabase na próxima etapa.</p>
+        <label>Palavra-passe<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required /></label>
+        {error && <p className="note">{error}</p>}
+        <button className="primary" disabled={loading}>{loading ? 'A verificar…' : 'Entrar na plataforma'}</button>
+        <button type="button" className="google" onClick={() => signInWithGoogle().catch(e => setError(e.message))}>G&nbsp;&nbsp; Continuar com Google</button>
+        <p className="note">{supabaseConfigured ? 'Ligação segura activa.' : 'Modo de demonstração: configure o Supabase para activar contas reais.'}</p>
       </form>
     </section>
   </main>
@@ -44,7 +50,7 @@ function Login() {
 
 function Layout() {
   const navigate = useNavigate()
-  const logout = () => { localStorage.removeItem('procplus_session'); navigate('/login') }
+  const logout = async () => { await signOut(); navigate('/login') }
   return <div className="shell">
     <aside>
       <div className="logo light small">P<span>+</span><b>procplus</b></div>
