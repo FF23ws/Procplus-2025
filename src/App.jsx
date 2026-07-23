@@ -4,6 +4,7 @@ import { getSession, onAuthStateChange, sendPasswordReset, signIn, signInWithGoo
 import OrganizationPage from './OrganizationPage.jsx'
 import ProcurementPage from './ProcurementPage.jsx'
 import SuppliersPage from './SuppliersPage.jsx'
+import ApprovalsPage from './ApprovalsPage.jsx'
 
 // Production entrypoint: organization, procurement and supplier workspaces.
 const tenders = [
@@ -137,7 +138,7 @@ function Layout() {
         <NavLink end to="/app">◫ <span>Visão geral</span></NavLink>
         <NavLink to="/app/organizacao">◫ <span>Organização</span></NavLink>
         {['Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Relatórios'].map(x =>
-          <NavLink key={x} to={`/app/${x.toLowerCase()}`}>◫ <span>{x}</span>{x === 'Aprovações' && <em>4</em>}</NavLink>
+          <NavLink key={x} to={`/app/${x.toLowerCase()}`}>◫ <span>{x}</span></NavLink>
         )}
       </nav>
       <div className="org"><b>ADPP Moçambique</b><small>Plano Enterprise</small></div>
@@ -150,6 +151,7 @@ function Layout() {
         <Route path="organizacao" element={<OrganizationPage />} />
         <Route path="concursos" element={<ProcurementPage />} />
         <Route path="fornecedores" element={<SuppliersPage />} />
+        <Route path="aprovações" element={<ApprovalsPage />} />
         <Route path="*" element={<ComingSoon />} />
       </Routes>
     </section>
