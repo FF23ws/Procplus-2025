@@ -1,0 +1,207 @@
+import { useEffect, useMemo, useState } from 'react'
+import { createContract, createMilestone, loadContracts, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
+
+const emptyForm = {
+  document_type: 'contract',
+  process_id: '',
+  supplier_id: '',
+  title: '',
+  description: '',
+  total_value: '',
+  currency: 'MZN',
+  start_date: '',
+  end_date: '',
+  status: 'draft',
+}
+
+const statusLabels = {
+  draft: 'Rascunho',
+  pending_signature: 'Aguarda assinatura',
+  active: 'Activo',
+  completed: 'Concluído',
+  terminated: 'Rescindido',
+  cancelled: 'Cancelado',
+}
+
+const milestoneLabels = {
+  pending: 'Pendente',
+  in_progress: 'Em curso',
+  completed: 'Concluído',
+  overdue: 'Em atraso',
+  cancelled: 'Cancelado',
+}
+
+const money = (value, currency) => new Intl.NumberFormat('pt-MZ', {
+  style: 'currency',
+  currency,
+  maximumFractionDigits: 2,
+}).format(value)
+
+export default function ContractsPage() {
+  const [workspace, setWorkspace] = useState(null)
+  const [form, setForm] = useState(emptyForm)
+  const [showForm, setShowForm] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [filter, setFilter] = useState('all')
+  const [milestone, setMilestone] = useState({ title: '', due_date: '', amount: '' })
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const refresh = async (selectedId = selected?.id) => {
+    const data = await loadContracts()
+    setWorkspace(data)
+    if (selectedId) setSelected(data.contracts.find(item => item.id === selectedId) || null)
+  }
+
+  useEffect(() => { refresh().catch(err => setError(err.message)) }, [])
+
+  const visible = useMemo(() => {
+    if (!workspace) return []
+    return filter === 'all' ? workspace.contracts : workspace.contracts.filter(item => item.status === filter)
+  }, [workspace, filter])
+
+  const submit = async (event) => {
+    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    try {
+      await createContract(workspace.organization.id, {
+        ...form,
+        process_id: form.process_id || null,
+        total_value: Number(form.total_value),
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        description: form.description || null,
+      })
+      setForm(emptyForm)
+      setShowForm(false)
+      setMessage('Contrato registado com sucesso.')
+      await refresh()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const changeStatus = async (status) => {
+    setSaving(true); setError(''); setMessage('')
+    try {
+      await updateContractStatus(selected.id, status)
+      setMessage(`Estado alterado para “${statusLabels[status]}”.`)
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const addMilestone = async (event) => {
+    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    try {
+      await createMilestone(selected.id, {
+        title: milestone.title,
+        due_date: milestone.due_date,
+        amount: Number(milestone.amount || 0),
+      })
+      setMilestone({ title: '', due_date: '', amount: '' })
+      setMessage('Marco contratual adicionado.')
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const changeMilestone = async (id, status) => {
+    setSaving(true); setError(''); setMessage('')
+    try {
+      await updateMilestoneStatus(id, status)
+      setMessage('Marco actualizado.')
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!workspace) return <main className="dashboard"><div className="empty">A carregar os contratos…</div></main>
+  if (!workspace.organization) return <main className="dashboard"><div className="empty"><h2>Sem organização associada</h2></div></main>
+
+  return <main className="dashboard">
+    <div className="headline">
+      <div><h1>Contratos</h1><p>Controle contratos, ordens de compra, entregas e pagamentos.</p></div>
+      <button className="primary compact" onClick={() => { setShowForm(!showForm); setSelected(null) }}>{showForm ? 'Fechar' : '+ Novo contrato'}</button>
+    </div>
+    {message && <p className="alert success">{message}</p>}
+    {error && <p className="alert error">{error}</p>}
+
+    {showForm && <form className="card procurement-form" onSubmit={submit}>
+      <div className="card-title"><div><h3>Novo documento contratual</h3><p>Ligue a contratação ao processo e ao fornecedor seleccionado.</p></div></div>
+      <div className="form-pair">
+        <label>Tipo<select value={form.document_type} onChange={e => setForm({ ...form, document_type: e.target.value })}><option value="contract">Contrato</option><option value="purchase_order">Ordem de compra</option></select></label>
+        <label>Estado inicial<select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="draft">Rascunho</option><option value="pending_signature">Aguarda assinatura</option></select></label>
+        <label className="span-two">Título<input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required /></label>
+        <label>Processo<select value={form.process_id} onChange={e => setForm({ ...form, process_id: e.target.value })}><option value="">Sem processo associado</option>{workspace.processes.map(item => <option key={item.id} value={item.id}>{item.reference} · {item.title}</option>)}</select></label>
+        <label>Fornecedor<select value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })} required><option value="">Seleccione</option>{workspace.suppliers.map(item => <option key={item.id} value={item.id}>{item.trading_name || item.legal_name}</option>)}</select></label>
+        <label>Valor total<input type="number" min="0" step="0.01" value={form.total_value} onChange={e => setForm({ ...form, total_value: e.target.value })} required /></label>
+        <label>Moeda<select value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}><option>MZN</option><option>USD</option><option>EUR</option><option>ZAR</option></select></label>
+        <label>Data de início<input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} /></label>
+        <label>Data de término<input type="date" min={form.start_date} value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} /></label>
+        <label className="span-two">Objecto e condições<textarea rows="4" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+      </div>
+      {workspace.suppliers.length === 0 && <p className="form-warning">É necessário pré‑qualificar pelo menos um fornecedor antes de criar o contrato.</p>}
+      <button className="primary compact" disabled={saving || workspace.suppliers.length === 0}>{saving ? 'A registar…' : 'Registar documento'}</button>
+    </form>}
+
+    {!showForm && <section className="procurement-layout contract-layout">
+      <div className="card process-list">
+        <div className="process-toolbar">
+          <div><h3>Documentos contratuais</h3><small>{workspace.contracts.length} documento(s)</small></div>
+          <select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Todos os estados</option>{Object.entries(statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select>
+        </div>
+        {visible.length === 0 && <div className="list-empty">Ainda não existem documentos neste estado.</div>}
+        {visible.map(item => <button className={`process-row contract-row ${selected?.id === item.id ? 'selected' : ''}`} key={item.id} onClick={() => setSelected(item)}>
+          <div><b>{item.title}</b><small>{item.contract_number} · {item.suppliers?.trading_name || item.suppliers?.legal_name}</small></div>
+          <strong>{money(item.total_value, item.currency)}</strong>
+          <span className={`process-status contract-${item.status}`}>{statusLabels[item.status]}</span>
+        </button>)}
+      </div>
+
+      <aside className="card process-detail contract-detail">
+        {!selected ? <div className="detail-placeholder"><h3>Execução contratual</h3><p>Seleccione um contrato para acompanhar o seu cumprimento.</p></div> : <>
+          <div className="detail-heading">
+            <span className={`process-status contract-${selected.status}`}>{statusLabels[selected.status]}</span>
+            <small>{selected.contract_number} · {selected.document_type === 'contract' ? 'Contrato' : 'Ordem de compra'}</small>
+            <h2>{selected.title}</h2>
+          </div>
+          <dl>
+            <div><dt>Fornecedor</dt><dd>{selected.suppliers?.trading_name || selected.suppliers?.legal_name}</dd></div>
+            <div><dt>Valor total</dt><dd>{money(selected.total_value, selected.currency)}</dd></div>
+            <div><dt>Vigência</dt><dd>{selected.start_date || '—'} a {selected.end_date || '—'}</dd></div>
+            <div><dt>Processo</dt><dd>{selected.procurement_processes?.reference || 'Não associado'}</dd></div>
+          </dl>
+          {selected.description && <p className="detail-description">{selected.description}</p>}
+          <label>Estado do contrato<select value={selected.status} onChange={e => changeStatus(e.target.value)} disabled={saving}>{Object.entries(statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
+
+          <div className="milestone-section">
+            <h3>Entregas e pagamentos</h3>
+            {selected.contract_milestones.length === 0 && <p>Ainda não existem marcos definidos.</p>}
+            {[...selected.contract_milestones].sort((a, b) => a.due_date.localeCompare(b.due_date)).map(item => <div className="milestone-row" key={item.id}>
+              <div><b>{item.title}</b><small>{item.due_date} · {money(item.amount, selected.currency)}</small></div>
+              <select value={item.status} onChange={e => changeMilestone(item.id, e.target.value)} disabled={saving}>{Object.entries(milestoneLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select>
+            </div>)}
+            <form className="milestone-form" onSubmit={addMilestone}>
+              <input value={milestone.title} onChange={e => setMilestone({ ...milestone, title: e.target.value })} placeholder="Novo marco" required />
+              <input type="date" value={milestone.due_date} onChange={e => setMilestone({ ...milestone, due_date: e.target.value })} required />
+              <input type="number" min="0" step="0.01" value={milestone.amount} onChange={e => setMilestone({ ...milestone, amount: e.target.value })} placeholder="Valor" />
+              <button className="primary compact" disabled={saving}>Adicionar</button>
+            </form>
+          </div>
+        </>}
+      </aside>
+    </section>}
+  </main>
+}
