@@ -5,6 +5,7 @@ import { canAccess, loadCurrentAccess } from './lib/access.js'
 const items = [
   { module: 'procurement', label: 'Concursos', path: '/app/concursos' },
   { module: 'suppliers', label: 'Fornecedores', path: '/app/fornecedores' },
+  { module: 'evaluations', label: 'Avaliações', path: '/app/avaliações' },
   { module: 'contracts', label: 'Contratos', path: '/app/contratos' },
   { module: 'approvals', label: 'Aprovações', path: '/app/aprovações' },
   { module: 'finance', label: 'Finanças', path: '/app/finanças' },
