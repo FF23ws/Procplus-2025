@@ -1,10 +1,9 @@
 import { supabase } from './supabase.js'
 
-const STORE_KEY = 'procplus-documents'
-const readLocal = () => {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]') } catch { return [] }
+const BUCKET = 'procurement-documents'
+const ensureClient = () => {
+  if (!supabase) throw new Error('Ligação ao Supabase indisponível.')
 }
-
 const statusOf = date => {
   if (!date) return 'valid'
   const days = Math.ceil((new Date(date) - new Date()) / 86400000)
@@ -12,53 +11,49 @@ const statusOf = date => {
   if (days <= 30) return 'expiring'
   return 'valid'
 }
-
-const requiredDocuments = [
-  { id: 'required-1', name: 'Declaração de conflito de interesses', entity_type: 'approval', entity_name: 'Comité de avaliação', reference: 'Obrigatório', status: 'missing' },
-  { id: 'required-2', name: 'Certidão de quitação fiscal', entity_type: 'supplier', entity_name: 'Fornecedores pré-qualificados', reference: 'Obrigatório', status: 'missing' },
-  { id: 'required-3', name: 'Relatório de avaliação e adjudicação', entity_type: 'tender', entity_name: 'Processos adjudicados', reference: 'Obrigatório', status: 'missing' },
-]
-
-export async function loadDocumentWorkspace() {
-  const local = readLocal().map(item => ({ ...item, status: statusOf(item.expires_at) }))
-  if (!supabase) return { documents: [...local, ...requiredDocuments] }
-  try {
-    const { data, error } = await supabase.from('documents').select('*').order('created_at', { ascending: false })
-    if (error) throw error
-    return { documents: [...(data || []).map(item => ({ ...item, status: statusOf(item.expires_at) })), ...requiredDocuments] }
-  } catch {
-    return { documents: [...local, ...requiredDocuments] }
-  }
+async function getOrganizationId() {
+  ensureClient()
+  const { data, error } = await supabase.from('organizations').select('id').limit(1).maybeSingle()
+  if (error) throw error
+  if (!data) throw new Error('A sua conta ainda não está associada a uma organização.')
+  return data.id
 }
-
+export async function loadDocumentWorkspace() {
+  const organizationId = await getOrganizationId()
+  const { data, error } = await supabase.from('documents').select('*').eq('organization_id', organizationId).order('created_at', { ascending: false })
+  if (error) throw error
+  return { organizationId, documents: (data || []).map(item => ({ ...item, status: statusOf(item.expires_at) })) }
+}
 export async function addDocument(document) {
   if (!document.file?.name) throw new Error('Seleccione um ficheiro.')
-  const record = {
-    id: crypto.randomUUID(),
-    name: document.name,
-    entity_type: document.entity_type,
-    entity_name: document.entity_name,
-    reference: document.reference,
-    expires_at: document.expires_at,
-    file_name: document.file.name,
-    file_size: document.file.size,
-    created_at: new Date().toISOString(),
+  const organizationId = await getOrganizationId()
+  const id = crypto.randomUUID()
+  const safeName = document.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const path = `${organizationId}/${id}-${safeName}`
+  const upload = await supabase.storage.from(BUCKET).upload(path, document.file, { contentType: document.file.type, upsert: false })
+  if (upload.error) throw upload.error
+  const { data, error } = await supabase.from('documents').insert({
+    id, organization_id: organizationId, name: document.name, entity_type: document.entity_type,
+    entity_name: document.entity_name, reference: document.reference || null,
+    expires_at: document.expires_at || null, file_name: document.file.name,
+    file_size: document.file.size, mime_type: document.file.type || null, storage_path: path,
+  }).select().single()
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path])
+    throw error
   }
-  if (supabase) {
-    try {
-      const { data: organizations } = await supabase.from('organizations').select('id').order('created_at').limit(1)
-      const organizationId = organizations?.[0]?.id
-      const path = `${organizationId || 'shared'}/${record.id}-${document.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-      const upload = await supabase.storage.from('procurement-documents').upload(path, document.file)
-      if (upload.error) throw upload.error
-      const insert = await supabase.from('documents').insert({ ...record, organization_id: organizationId, storage_path: path }).select().single()
-      if (insert.error) throw insert.error
-      return insert.data
-    } catch {
-      // Keep a usable local registry when the storage migration has not yet been applied.
-    }
-  }
-  const current = readLocal()
-  localStorage.setItem(STORE_KEY, JSON.stringify([record, ...current]))
-  return record
+  return data
+}
+export async function openDocument(storagePath) {
+  ensureClient()
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 60)
+  if (error) throw error
+  window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+}
+export async function removeDocument(document) {
+  ensureClient()
+  const storage = await supabase.storage.from(BUCKET).remove([document.storage_path])
+  if (storage.error) throw storage.error
+  const { error } = await supabase.from('documents').delete().eq('id', document.id)
+  if (error) throw error
 }
