@@ -16,6 +16,7 @@ import IntegrationsPage from './IntegrationsPage.jsx'
 import NotificationCenter from './NotificationCenter.jsx'
 import DashboardPage from './DashboardPage.jsx'
 import RoleNavigation from './RoleNavigation.jsx'
+import EvaluationsPage from './EvaluationsPage.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -155,6 +156,7 @@ function Layout() {
         <Route path="organizacao" element={<OrganizationPage />} />
         <Route path="concursos" element={<ProcurementPage />} />
         <Route path="fornecedores" element={<SuppliersPage />} />
+        <Route path="avaliações" element={<EvaluationsPage />} />
         <Route path="contratos" element={<ContractsPage />} />
         <Route path="aprovações" element={<ApprovalsPage />} />
         <Route path="finanças" element={<FinancePage />} />
