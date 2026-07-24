@@ -6,9 +6,11 @@ const decisionLabels = { approved: 'Aprovou', rejected: 'Rejeitou', changes_requ
 const fundLabels = { internal: 'Fundos próprios', eu: 'União Europeia', american_government: 'Governo dos Estados Unidos', mozambique_government: 'Governo de Moçambique', international: 'Financiador internacional', other: 'Outro financiador' }
 const methodLabels = { request_for_quotation: 'Pedido de cotações', open_tender: 'Concurso público', restricted_tender: 'Concurso restrito', direct_award: 'Ajuste directo' }
 const money = (value, currency = 'MZN') => new Intl.NumberFormat('pt-MZ', { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value || 0))
-const subjectOf = item => item.entity_type === 'finance'
-  ? { title: item.finance_entries?.description || 'Lançamento financeiro', reference: item.finance_entries?.reference, fund: item.finance_entries?.finance_projects?.code || 'Projecto financeiro', value: item.finance_entries?.amount_mzn, currency: 'MZN', method: 'Movimento financeiro', description: `${item.finance_entries?.finance_projects?.name || ''} · ${item.finance_entries?.entry_type || ''}` }
-  : { title: item.procurement_processes?.title, reference: item.procurement_processes?.reference, fund: fundLabels[item.procurement_processes?.funding_source], value: item.procurement_processes?.estimated_value, currency: item.procurement_processes?.currency, method: methodLabels[item.procurement_processes?.procurement_method], description: item.procurement_processes?.description }
+const subjectOf = item => {
+  if (item.entity_type === 'finance') return { title: item.finance_entries?.description || 'Lançamento financeiro', reference: item.finance_entries?.reference, fund: item.finance_entries?.finance_projects?.code || 'Projecto financeiro', value: item.finance_entries?.amount_mzn, currency: 'MZN', method: 'Movimento financeiro', description: `${item.finance_entries?.finance_projects?.name || ''} · ${item.finance_entries?.entry_type || ''}` }
+  if (item.entity_type === 'contract') return { title: item.contracts?.title || 'Documento contratual', reference: item.contracts?.contract_number, fund: item.contracts?.suppliers?.trading_name || item.contracts?.suppliers?.legal_name || 'Fornecedor', value: item.contracts?.total_value, currency: item.contracts?.currency, method: item.contracts?.document_type === 'purchase_order' ? 'Ordem de Compra' : 'Contrato', description: item.contracts?.description }
+  return { title: item.procurement_processes?.title, reference: item.procurement_processes?.reference, fund: fundLabels[item.procurement_processes?.funding_source], value: item.procurement_processes?.estimated_value, currency: item.procurement_processes?.currency, method: methodLabels[item.procurement_processes?.procurement_method], description: item.procurement_processes?.description }
+}
 
 export default function ApprovalsPage() {
   const [workspace, setWorkspace] = useState(null)
@@ -38,7 +40,7 @@ export default function ApprovalsPage() {
   if (!workspace.organization) return <main className="dashboard"><div className="empty"><h2>Sem organização associada</h2></div></main>
   const subject = selected ? subjectOf(selected) : null
   return <main className="dashboard">
-    <div className="headline"><div><h1>Aprovações</h1><p>Decisões de procurement e finanças num fluxo auditável.</p></div><span className="approval-counter">{pendingCount} pendente(s)</span></div>
+    <div className="headline"><div><h1>Aprovações</h1><p>Decisões de procurement, contratos e finanças num fluxo auditável.</p></div><span className="approval-counter">{pendingCount} pendente(s)</span></div>
     {message && <p className="alert success">{message}</p>}{error && <p className="alert error">{error}</p>}
     <section className="approval-metrics">
       <article><small>PENDENTES</small><strong>{pendingCount}</strong></article>
