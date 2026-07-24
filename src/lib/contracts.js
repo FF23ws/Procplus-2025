@@ -15,7 +15,7 @@ export async function loadContracts() {
   const organization = organizations?.[0]
   if (!organization) return { organization: null, contracts: [], processes: [], suppliers: [] }
 
-  const [contractsResult, processesResult, suppliersResult, approvalsResult, notificationsResult] = await Promise.all([
+  const [contractsResult, processesResult, suppliersResult, approvalsResult, notificationsResult, signaturesResult] = await Promise.all([
     supabase
       .from('contracts')
       .select('*, procurement_processes(reference,title), suppliers(supplier_code,legal_name,trading_name), contract_milestones(*)')
@@ -44,12 +44,17 @@ export async function loadContracts() {
       .select('*')
       .eq('organization_id', organization.id)
       .order('notified_at', { ascending: false }),
+    supabase
+      .from('contract_signatures')
+      .select('*')
+      .eq('organization_id', organization.id),
   ])
   if (contractsResult.error) throw contractsResult.error
   if (processesResult.error) throw processesResult.error
   if (suppliersResult.error) throw suppliersResult.error
   if (approvalsResult.error) throw approvalsResult.error
   if (notificationsResult.error) throw notificationsResult.error
+  if (signaturesResult.error) throw signaturesResult.error
   return {
     organization,
     contracts: contractsResult.data || [],
@@ -57,6 +62,7 @@ export async function loadContracts() {
     suppliers: suppliersResult.data || [],
     approvals: approvalsResult.data || [],
     notifications: notificationsResult.data || [],
+    signatures: signaturesResult.data || [],
   }
 }
 
@@ -84,6 +90,18 @@ export async function recordAwardResponse(notificationId, response, notes) {
     p_notification_id: notificationId,
     p_response: response,
     p_notes: notes || null,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function recordContractSignature(contractId, party, signatoryName, evidenceReference) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('record_contract_signature', {
+    p_contract_id: contractId,
+    p_party: party,
+    p_signatory_name: signatoryName,
+    p_evidence_reference: evidenceReference,
   })
   if (error) throw error
   return data
