@@ -6,6 +6,7 @@ import ProcurementPage from './ProcurementPage.jsx'
 import SuppliersPage from './SuppliersPage.jsx'
 import ApprovalsPage from './ApprovalsPage.jsx'
 import ContractsPage from './ContractsPage.jsx'
+import ReportsPage from './ReportsPage.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -154,6 +155,7 @@ function Layout() {
         <Route path="fornecedores" element={<SuppliersPage />} />
         <Route path="contratos" element={<ContractsPage />} />
         <Route path="aprovações" element={<ApprovalsPage />} />
+        <Route path="relatórios" element={<ReportsPage />} />
         <Route path="*" element={<ComingSoon />} />
       </Routes>
     </section>
