@@ -7,6 +7,7 @@ import SuppliersPage from './SuppliersPage.jsx'
 import ApprovalsPage from './ApprovalsPage.jsx'
 import ContractsPage from './ContractsPage.jsx'
 import ReportsPage from './ReportsPage.jsx'
+import DocumentsPage from './DocumentsPage.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -139,7 +140,7 @@ function Layout() {
       <nav>
         <NavLink end to="/app">◫ <span>Visão geral</span></NavLink>
         <NavLink to="/app/organizacao">◫ <span>Organização</span></NavLink>
-        {['Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Relatórios'].map(x =>
+        {['Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Relatórios', 'Documentos'].map(x =>
           <NavLink key={x} to={`/app/${x.toLowerCase()}`}>◫ <span>{x}</span></NavLink>
         )}
       </nav>
@@ -156,6 +157,7 @@ function Layout() {
         <Route path="contratos" element={<ContractsPage />} />
         <Route path="aprovações" element={<ApprovalsPage />} />
         <Route path="relatórios" element={<ReportsPage />} />
+        <Route path="documentos" element={<DocumentsPage />} />
         <Route path="*" element={<ComingSoon />} />
       </Routes>
     </section>
