@@ -15,7 +15,7 @@ export async function loadContracts() {
   const organization = organizations?.[0]
   if (!organization) return { organization: null, contracts: [], processes: [], suppliers: [] }
 
-  const [contractsResult, processesResult, suppliersResult] = await Promise.all([
+  const [contractsResult, processesResult, suppliersResult, approvalsResult] = await Promise.all([
     supabase
       .from('contracts')
       .select('*, procurement_processes(reference,title), suppliers(supplier_code,legal_name,trading_name), contract_milestones(*)')
@@ -33,16 +33,33 @@ export async function loadContracts() {
       .eq('organization_id', organization.id)
       .eq('status', 'prequalified')
       .order('legal_name'),
+    supabase
+      .from('approval_requests')
+      .select('id,contract_id,status,current_level,required_levels,submitted_at,completed_at')
+      .eq('organization_id', organization.id)
+      .eq('entity_type', 'contract')
+      .order('submitted_at', { ascending: false }),
   ])
   if (contractsResult.error) throw contractsResult.error
   if (processesResult.error) throw processesResult.error
   if (suppliersResult.error) throw suppliersResult.error
+  if (approvalsResult.error) throw approvalsResult.error
   return {
     organization,
     contracts: contractsResult.data || [],
     processes: processesResult.data || [],
     suppliers: suppliersResult.data || [],
+    approvals: approvalsResult.data || [],
   }
+}
+
+export async function submitContractApproval(contractId) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('submit_contract_approval', {
+    p_contract_id: contractId,
+  })
+  if (error) throw error
+  return data
 }
 
 export async function createContract(organizationId, values) {
