@@ -13,6 +13,7 @@ import AIPage from './AIPage.jsx'
 import FinancePage from './FinancePage.jsx'
 import CompliancePage from './CompliancePage.jsx'
 import IntegrationsPage from './IntegrationsPage.jsx'
+import NotificationCenter from './NotificationCenter.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -153,7 +154,7 @@ function Layout() {
       <button className="logout" onClick={logout}>Terminar sessão</button>
     </aside>
     <section className="workspace">
-      <header><div><small>QUINTA-FEIRA, 23 DE JULHO</small><h2>Bom dia, Fernando</h2></div><div className="avatar">FF</div></header>
+      <header><div><small>QUINTA-FEIRA, 23 DE JULHO</small><h2>Bom dia, Fernando</h2></div><div className="header-actions"><NotificationCenter /><div className="avatar">FF</div></div></header>
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="organizacao" element={<OrganizationPage />} />
