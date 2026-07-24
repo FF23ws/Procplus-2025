@@ -15,7 +15,7 @@ export async function loadContracts() {
   const organization = organizations?.[0]
   if (!organization) return { organization: null, contracts: [], processes: [], suppliers: [] }
 
-  const [contractsResult, processesResult, suppliersResult, approvalsResult] = await Promise.all([
+  const [contractsResult, processesResult, suppliersResult, approvalsResult, notificationsResult] = await Promise.all([
     supabase
       .from('contracts')
       .select('*, procurement_processes(reference,title), suppliers(supplier_code,legal_name,trading_name), contract_milestones(*)')
@@ -39,17 +39,24 @@ export async function loadContracts() {
       .eq('organization_id', organization.id)
       .eq('entity_type', 'contract')
       .order('submitted_at', { ascending: false }),
+    supabase
+      .from('award_notifications')
+      .select('*')
+      .eq('organization_id', organization.id)
+      .order('notified_at', { ascending: false }),
   ])
   if (contractsResult.error) throw contractsResult.error
   if (processesResult.error) throw processesResult.error
   if (suppliersResult.error) throw suppliersResult.error
   if (approvalsResult.error) throw approvalsResult.error
+  if (notificationsResult.error) throw notificationsResult.error
   return {
     organization,
     contracts: contractsResult.data || [],
     processes: processesResult.data || [],
     suppliers: suppliersResult.data || [],
     approvals: approvalsResult.data || [],
+    notifications: notificationsResult.data || [],
   }
 }
 
@@ -57,6 +64,26 @@ export async function submitContractApproval(contractId) {
   ensureClient()
   const { data, error } = await supabase.rpc('submit_contract_approval', {
     p_contract_id: contractId,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function recordAwardNotification(contractId) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('record_award_notification', {
+    p_contract_id: contractId,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function recordAwardResponse(notificationId, response, notes) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('record_award_response', {
+    p_notification_id: notificationId,
+    p_response: response,
+    p_notes: notes || null,
   })
   if (error) throw error
   return data
