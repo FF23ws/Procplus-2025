@@ -21,6 +21,7 @@ export async function loadApprovals() {
       *,
       procurement_processes(reference,title,description,estimated_value,currency,procurement_method,funding_source),
       finance_entries(reference,description,amount_mzn,currency,entry_type,status,finance_projects(code,name)),
+      contracts(contract_number,document_type,title,description,total_value,currency,status,suppliers(legal_name,trading_name)),
       approval_decisions(id,level,decision,comment,decided_at,profiles(full_name,email))
     `)
     .eq('organization_id', organization.id)
