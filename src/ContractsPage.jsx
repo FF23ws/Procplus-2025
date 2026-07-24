@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createContract, createMilestone, loadContracts, recordAwardNotification, recordAwardResponse, recordContractSignature, submitContractApproval, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
+import { createContract, createMilestone, loadContracts, recordAwardNotification, recordAwardResponse, recordContractDelivery, recordContractSignature, recordSupplierPayment, submitContractApproval, submitSupplierInvoice, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
 
 const emptyForm = {
   document_type: 'contract',
@@ -46,6 +46,9 @@ export default function ContractsPage() {
   const [milestone, setMilestone] = useState({ title: '', due_date: '', amount: '' })
   const [responseNotes, setResponseNotes] = useState('')
   const [signature, setSignature] = useState({ party: 'organization', signatoryName: '', evidenceReference: '' })
+  const [delivery, setDelivery] = useState({ milestoneId: '', reference: '', date: new Date().toISOString().slice(0, 10), notes: '' })
+  const [invoice, setInvoice] = useState({ deliveryId: '', projectId: '', number: '', date: new Date().toISOString().slice(0, 10), amount: '', exchangeRate: 1 })
+  const [paymentReference, setPaymentReference] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -151,6 +154,37 @@ export default function ContractsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const saveDelivery = async event => {
+    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    try {
+      await recordContractDelivery(selected.id, delivery)
+      setDelivery(value => ({ ...value, milestoneId: '', reference: '', notes: '' }))
+      setMessage('Entrega aceite e registada.')
+      await refresh(selected.id)
+    } catch (err) { setError(err.message) } finally { setSaving(false) }
+  }
+
+  const saveInvoice = async event => {
+    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    try {
+      await submitSupplierInvoice(selected.id, invoice)
+      setInvoice(value => ({ ...value, number: '', amount: '' }))
+      setMessage('Correspondência tripla validada e pagamento submetido à aprovação financeira.')
+      await refresh(selected.id)
+    } catch (err) { setError(err.message) } finally { setSaving(false) }
+  }
+
+  const savePayment = async invoiceId => {
+    if (!paymentReference.trim()) return setError('Indique a referência do pagamento.')
+    setSaving(true); setError(''); setMessage('')
+    try {
+      await recordSupplierPayment(invoiceId, paymentReference.trim())
+      setPaymentReference('')
+      setMessage('Pagamento registado e comprovativo marcado como pago.')
+      await refresh(selected.id)
+    } catch (err) { setError(err.message) } finally { setSaving(false) }
   }
 
   const addMilestone = async (event) => {
@@ -292,6 +326,37 @@ export default function ContractsPage() {
               <button className="primary compact" disabled={saving}>Adicionar</button>
             </form>
           </div>
+          {selected.status === 'active' && (() => {
+            const deliveries = workspace.deliveries.filter(item => item.contract_id === selected.id)
+            const invoices = workspace.invoices.filter(item => item.contract_id === selected.id)
+            return <div className="milestone-section execution-section">
+              <h3>Correspondência tripla</h3>
+              <p>Valide Contrato/OC, entrega aceite e factura antes de solicitar o pagamento.</p>
+              <form className="milestone-form" onSubmit={saveDelivery}>
+                <select value={delivery.milestoneId} onChange={e => setDelivery({ ...delivery, milestoneId: e.target.value })}><option value="">Entrega geral</option>{selected.contract_milestones.filter(item => item.status !== 'completed').map(item => <option value={item.id} key={item.id}>{item.title}</option>)}</select>
+                <input value={delivery.reference} onChange={e => setDelivery({ ...delivery, reference: e.target.value })} placeholder="Guia/Form H/Certificado" required />
+                <input type="date" value={delivery.date} onChange={e => setDelivery({ ...delivery, date: e.target.value })} required />
+                <input value={delivery.notes} onChange={e => setDelivery({ ...delivery, notes: e.target.value })} placeholder="Observações da aceitação" />
+                <button className="primary compact" disabled={saving}>Aceitar entrega</button>
+              </form>
+              {deliveries.map(item => <div className="milestone-row" key={item.id}><div><b>Entrega aceite · {item.delivery_reference}</b><small>{item.delivery_date} · {item.acceptance_notes || 'Sem observações'}</small></div><span className="process-status contract-active">Aceite</span></div>)}
+
+              {deliveries.length > 0 && workspace.financeProjects.length > 0 && <form className="procurement-form" onSubmit={saveInvoice}>
+                <h3>Registar factura e solicitar pagamento</h3>
+                <div className="form-pair">
+                  <label>Entrega<select required value={invoice.deliveryId} onChange={e => setInvoice({ ...invoice, deliveryId: e.target.value })}><option value="">Seleccione</option>{deliveries.map(item => <option value={item.id} key={item.id}>{item.delivery_reference}</option>)}</select></label>
+                  <label>Projecto financeiro<select required value={invoice.projectId} onChange={e => setInvoice({ ...invoice, projectId: e.target.value })}><option value="">Seleccione</option>{workspace.financeProjects.map(item => <option value={item.id} key={item.id}>{item.code} · {item.name}</option>)}</select></label>
+                  <label>N.º da factura<input required value={invoice.number} onChange={e => setInvoice({ ...invoice, number: e.target.value })} /></label>
+                  <label>Data da factura<input required type="date" value={invoice.date} onChange={e => setInvoice({ ...invoice, date: e.target.value })} /></label>
+                  <label>Valor<input required type="number" min="0.01" step="0.01" value={invoice.amount} onChange={e => setInvoice({ ...invoice, amount: e.target.value })} /></label>
+                  <label>Taxa de câmbio<input required type="number" min="0.000001" step="0.000001" value={invoice.exchangeRate} onChange={e => setInvoice({ ...invoice, exchangeRate: e.target.value })} /></label>
+                </div>
+                <button className="primary compact" disabled={saving}>Validar e submeter pagamento</button>
+              </form>}
+              {deliveries.length > 0 && workspace.financeProjects.length === 0 && <p className="form-warning">Crie primeiro um projecto no módulo Financeiro para submeter a factura.</p>}
+              {invoices.map(item => <div className="milestone-row" key={item.id}><div><b>Factura {item.invoice_number} · {money(item.amount, item.currency)}</b><small>{item.status === 'pending_approval' ? 'Aguarda aprovação financeira' : item.status === 'approved' ? 'Aprovada para pagamento' : item.status === 'paid' ? `Paga · ${item.payment_reference}` : 'Rejeitada'}</small></div>{item.status === 'approved' ? <div><input value={paymentReference} onChange={e => setPaymentReference(e.target.value)} placeholder="Referência bancária" /><button className="primary compact" onClick={() => savePayment(item.id)} disabled={saving}>Marcar paga</button></div> : <span className="process-status">{item.status}</span>}</div>)}
+            </div>
+          })()}
         </>}
       </aside>
     </section>}
