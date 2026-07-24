@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createContract, createMilestone, loadContracts, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
+import { createContract, createMilestone, loadContracts, submitContractApproval, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
 
 const emptyForm = {
   document_type: 'contract',
@@ -96,6 +96,19 @@ export default function ContractsPage() {
     }
   }
 
+  const requestApproval = async () => {
+    setSaving(true); setError(''); setMessage('')
+    try {
+      await submitContractApproval(selected.id)
+      setMessage('Documento submetido à aprovação em dois níveis.')
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const addMilestone = async (event) => {
     event.preventDefault(); setSaving(true); setError(''); setMessage('')
     try {
@@ -184,7 +197,16 @@ export default function ContractsPage() {
             <div><dt>Processo</dt><dd>{selected.procurement_processes?.reference || 'Não associado'}</dd></div>
           </dl>
           {selected.description && <p className="detail-description">{selected.description}</p>}
-          <label>Estado do contrato<select value={selected.status} onChange={e => changeStatus(e.target.value)} disabled={saving}>{Object.entries(statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
+          {(() => {
+            const approval = workspace.approvals.find(item => item.contract_id === selected.id)
+            return <div className="contract-approval">
+              {approval?.status === 'pending' && <p className="form-warning">Aprovação em curso · nível {approval.current_level} de {approval.required_levels}</p>}
+              {approval?.status === 'approved' && <p className="alert success">Documento aprovado e pronto para assinatura.</p>}
+              {approval?.status === 'changes_requested' && <p className="form-warning">Foram solicitadas alterações. Reveja o documento e volte a submeter.</p>}
+              {selected.status === 'draft' && approval?.status !== 'pending' && <button className="primary compact" onClick={requestApproval} disabled={saving}>{saving ? 'A submeter…' : 'Submeter à aprovação'}</button>}
+            </div>
+          })()}
+          <label>Estado do contrato<select value={selected.status} onChange={e => changeStatus(e.target.value)} disabled={saving || workspace.approvals.some(item => item.contract_id === selected.id && item.status === 'pending')}>{Object.entries(statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
 
           <div className="milestone-section">
             <h3>Entregas e pagamentos</h3>
