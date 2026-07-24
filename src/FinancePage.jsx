@@ -5,6 +5,7 @@ const money = value => new Intl.NumberFormat('pt-MZ', { style: 'currency', curre
 const percent = (value, total) => total ? Math.round((Number(value) / Number(total)) * 100) : 0
 const typeLabels = { commitment: 'Compromisso', expense: 'Despesa', advance: 'Adiantamento', exchange_adjustment: 'Ajustamento cambial', indirect_cost: 'Custo indirecto', reversal: 'Reversão' }
 const statusLabels = { draft: 'Rascunho', pending_approval: 'Pendente', approved: 'Aprovado', posted: 'Registado', cancelled: 'Cancelado' }
+const entryStatusLabels = { draft: 'Rascunho', pending_approval: 'Submeter para aprovação' }
 
 export default function FinancePage() {
   const [workspace, setWorkspace] = useState({ organizationId: null, projects: [], entries: [] })
@@ -86,7 +87,7 @@ export default function FinancePage() {
         <label>Tipo<select value={entry.type} onChange={e => setEntry({ ...entry, type: e.target.value })}>{Object.entries(typeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
         <label>Valor<input required type="number" min="0" step="0.01" value={entry.amount} onChange={e => setEntry({ ...entry, amount: e.target.value })} /></label>
         <label>Data<input type="date" value={entry.date} onChange={e => setEntry({ ...entry, date: e.target.value })} /></label>
-        <label>Estado<select value={entry.status} onChange={e => setEntry({ ...entry, status: e.target.value })}>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+        <label>Estado<select value={entry.status} onChange={e => setEntry({ ...entry, status: e.target.value })}>{Object.entries(entryStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
       </div><button className="primary compact" disabled={saving}>{saving ? 'A guardar…' : 'Guardar lançamento'}</button>
     </form>}
 
