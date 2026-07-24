@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { createContract } from './contracts.js'
 
 const ensure = () => { if (!supabase) throw new Error('Ligação ao Supabase indisponível.') }
 export async function loadEvaluationWorkspace() {
@@ -10,9 +11,10 @@ export async function loadEvaluationWorkspace() {
     supabase.from('procurement_processes').select('id,reference,title,status,currency,estimated_value').eq('organization_id', organization.id).in('status', ['published','evaluation','awarded']).order('created_at', { ascending: false }),
     supabase.from('suppliers').select('id,legal_name,status').eq('organization_id', organization.id).neq('status', 'suspended').order('legal_name'),
     supabase.from('procurement_bids').select('*,suppliers(legal_name),procurement_processes(reference,title)').eq('organization_id', organization.id).order('total_score', { ascending: false }),
+    supabase.from('contracts').select('id,contract_number,document_type,process_id,supplier_id,status').eq('organization_id', organization.id),
   ])
   for (const result of results) if (result.error) throw result.error
-  return { organization, processes: results[0].data || [], suppliers: results[1].data || [], bids: results[2].data || [] }
+  return { organization, processes: results[0].data || [], suppliers: results[1].data || [], bids: results[2].data || [], contracts: results[3].data || [] }
 }
 export async function createBid(organizationId, values) {
   ensure()
@@ -45,4 +47,43 @@ export async function recommendBid(bid) {
   if (error) throw error
   if (!data) throw new Error('Apenas propostas conformes podem ser recomendadas.')
   return data
+}
+
+export async function awardBid(organizationId, bid) {
+  ensure()
+  if (bid.status !== 'recommended' || bid.compliance_status !== 'compliant') {
+    throw new Error('A adjudicação exige uma proposta conforme e recomendada.')
+  }
+  const { data: existing, error: existingError } = await supabase
+    .from('contracts')
+    .select('id,contract_number,document_type')
+    .eq('organization_id', organizationId)
+    .eq('process_id', bid.process_id)
+    .maybeSingle()
+  if (existingError) throw existingError
+  if (existing) return { contract: existing, existed: true }
+
+  const documentType = bid.currency === 'USD' && Number(bid.amount) <= 50000
+    ? 'purchase_order'
+    : 'contract'
+  const processTitle = bid.procurement_processes?.title || 'Aquisição adjudicada'
+  const supplierName = bid.suppliers?.legal_name || 'fornecedor seleccionado'
+  const contract = await createContract(organizationId, {
+    document_type: documentType,
+    process_id: bid.process_id,
+    supplier_id: bid.supplier_id,
+    title: processTitle,
+    description: `Adjudicação da proposta ${bid.bid_reference} apresentada por ${supplierName}.`,
+    total_value: Number(bid.amount),
+    currency: bid.currency,
+    start_date: null,
+    end_date: null,
+    status: 'draft',
+  })
+  const processUpdate = await supabase
+    .from('procurement_processes')
+    .update({ status: 'awarded' })
+    .eq('id', bid.process_id)
+  if (processUpdate.error) throw processUpdate.error
+  return { contract, existed: false }
 }
