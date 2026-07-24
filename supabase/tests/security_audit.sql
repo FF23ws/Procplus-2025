@@ -20,6 +20,14 @@ anonymous_policies as (
   from pg_policies
   where schemaname = 'public'
     and ('anon' = any(roles) or 'public' = any(roles))
+    and (
+      (cmd in ('SELECT','DELETE') and lower(coalesce(qual, 'true')) in ('true','(true)'))
+      or (cmd = 'INSERT' and lower(coalesce(with_check, 'true')) in ('true','(true)'))
+      or (cmd in ('UPDATE','ALL') and (
+        lower(coalesce(qual, 'true')) in ('true','(true)')
+        or (with_check is not null and lower(with_check) in ('true','(true)'))
+      ))
+    )
 ),
 unsafe_definers as (
   select jsonb_agg(p.proname order by p.proname) as items
