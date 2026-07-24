@@ -4,6 +4,7 @@ export const moduleRoles = {
   organization: ['owner', 'admin'],
   procurement: ['owner', 'admin', 'procurement_manager', 'procurement_officer', 'evaluator', 'approver', 'auditor', 'viewer'],
   suppliers: ['owner', 'admin', 'procurement_manager', 'procurement_officer', 'evaluator', 'auditor', 'contract_manager', 'viewer'],
+  evaluations: ['owner', 'admin', 'procurement_manager', 'procurement_officer', 'evaluator', 'approver', 'auditor', 'viewer'],
   contracts: ['owner', 'admin', 'procurement_manager', 'procurement_officer', 'approver', 'finance', 'auditor', 'contract_manager', 'viewer'],
   approvals: ['owner', 'admin', 'procurement_manager', 'approver', 'finance', 'auditor'],
   finance: ['owner', 'admin', 'finance', 'approver', 'auditor', 'viewer'],
