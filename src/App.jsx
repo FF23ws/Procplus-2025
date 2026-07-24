@@ -14,6 +14,7 @@ import FinancePage from './FinancePage.jsx'
 import CompliancePage from './CompliancePage.jsx'
 import IntegrationsPage from './IntegrationsPage.jsx'
 import NotificationCenter from './NotificationCenter.jsx'
+import DashboardPage from './DashboardPage.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -156,7 +157,7 @@ function Layout() {
     <section className="workspace">
       <header><div><small>QUINTA-FEIRA, 23 DE JULHO</small><h2>Bom dia, Fernando</h2></div><div className="header-actions"><NotificationCenter /><div className="avatar">FF</div></div></header>
       <Routes>
-        <Route index element={<Dashboard />} />
+        <Route index element={<DashboardPage />} />
         <Route path="organizacao" element={<OrganizationPage />} />
         <Route path="concursos" element={<ProcurementPage />} />
         <Route path="fornecedores" element={<SuppliersPage />} />
