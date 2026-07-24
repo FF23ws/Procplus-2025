@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createContract, createMilestone, loadContracts, submitContractApproval, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
+import { createContract, createMilestone, loadContracts, recordAwardNotification, recordAwardResponse, submitContractApproval, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
 
 const emptyForm = {
   document_type: 'contract',
@@ -44,6 +44,7 @@ export default function ContractsPage() {
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('all')
   const [milestone, setMilestone] = useState({ title: '', due_date: '', amount: '' })
+  const [responseNotes, setResponseNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -109,6 +110,34 @@ export default function ContractsPage() {
     }
   }
 
+  const notifyAward = async () => {
+    setSaving(true); setError(''); setMessage('')
+    try {
+      const notification = await recordAwardNotification(selected.id)
+      setMessage(`Notificação ${notification.notification_reference} registada como enviada.`)
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveAwardResponse = async (notification, response) => {
+    if (response === 'rejected' && !responseNotes.trim()) return setError('Indique a justificação da rejeição.')
+    setSaving(true); setError(''); setMessage('')
+    try {
+      await recordAwardResponse(notification.id, response, responseNotes.trim())
+      setResponseNotes('')
+      setMessage(response === 'accepted' ? 'Aceitação do fornecedor registada.' : 'Rejeição do fornecedor registada.')
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const addMilestone = async (event) => {
     event.preventDefault(); setSaving(true); setError(''); setMessage('')
     try {
@@ -155,7 +184,7 @@ export default function ContractsPage() {
       <div className="card-title"><div><h3>Novo documento contratual</h3><p>Ligue a contratação ao processo e ao fornecedor seleccionado.</p></div></div>
       <div className="form-pair">
         <label>Tipo<select value={form.document_type} onChange={e => setForm({ ...form, document_type: e.target.value })}><option value="contract">Contrato</option><option value="purchase_order">Ordem de compra</option></select></label>
-        <label>Estado inicial<select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="draft">Rascunho</option><option value="pending_signature">Aguarda assinatura</option></select></label>
+        <label>Estado inicial<select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="draft">Rascunho</option></select></label>
         <label className="span-two">Título<input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required /></label>
         <label>Processo<select value={form.process_id} onChange={e => setForm({ ...form, process_id: e.target.value })}><option value="">Sem processo associado</option>{workspace.processes.map(item => <option key={item.id} value={item.id}>{item.reference} · {item.title}</option>)}</select></label>
         <label>Fornecedor<select value={form.supplier_id} onChange={e => setForm({ ...form, supplier_id: e.target.value })} required><option value="">Seleccione</option>{workspace.suppliers.map(item => <option key={item.id} value={item.id}>{item.trading_name || item.legal_name}</option>)}</select></label>
@@ -199,11 +228,20 @@ export default function ContractsPage() {
           {selected.description && <p className="detail-description">{selected.description}</p>}
           {(() => {
             const approval = workspace.approvals.find(item => item.contract_id === selected.id)
+            const notification = workspace.notifications.find(item => item.contract_id === selected.id)
             return <div className="contract-approval">
+              <h3>Notificação de adjudicação</h3>
+              {!notification && selected.status === 'draft' && <><p>Registe o envio da notificação ao fornecedor antes de iniciar a aprovação contratual.</p><button className="primary compact" onClick={notifyAward} disabled={saving || !selected.process_id}>{saving ? 'A registar…' : 'Registar notificação enviada'}</button></>}
+              {notification && <div className="award-notification">
+                <p><b>{notification.notification_reference}</b><br />Enviada em {new Date(notification.notified_at).toLocaleString('pt-MZ')}<br />Prazo de reclamação: {new Date(`${notification.complaint_deadline}T00:00:00`).toLocaleDateString('pt-MZ')}</p>
+                {notification.response_status === 'pending' && <><label>Observação da resposta<textarea rows="2" value={responseNotes} onChange={e => setResponseNotes(e.target.value)} placeholder="Referência da carta ou motivo de rejeição" /></label><div className="decision-actions"><button className="decision-reject" onClick={() => saveAwardResponse(notification, 'rejected')} disabled={saving}>Registar rejeição</button><button className="primary compact" onClick={() => saveAwardResponse(notification, 'accepted')} disabled={saving}>Registar aceitação</button></div></>}
+                {notification.response_status === 'accepted' && <p className="alert success">Fornecedor aceitou a adjudicação.</p>}
+                {notification.response_status === 'rejected' && <p className="alert error">Fornecedor rejeitou a adjudicação. {notification.response_notes}</p>}
+              </div>}
               {approval?.status === 'pending' && <p className="form-warning">Aprovação em curso · nível {approval.current_level} de {approval.required_levels}</p>}
               {approval?.status === 'approved' && <p className="alert success">Documento aprovado e pronto para assinatura.</p>}
               {approval?.status === 'changes_requested' && <p className="form-warning">Foram solicitadas alterações. Reveja o documento e volte a submeter.</p>}
-              {selected.status === 'draft' && approval?.status !== 'pending' && <button className="primary compact" onClick={requestApproval} disabled={saving}>{saving ? 'A submeter…' : 'Submeter à aprovação'}</button>}
+              {selected.status === 'draft' && notification?.response_status === 'accepted' && approval?.status !== 'pending' && <button className="primary compact" onClick={requestApproval} disabled={saving}>{saving ? 'A submeter…' : 'Submeter à aprovação'}</button>}
             </div>
           })()}
           <label>Estado do contrato<select value={selected.status} onChange={e => changeStatus(e.target.value)} disabled={saving || workspace.approvals.some(item => item.contract_id === selected.id && item.status === 'pending')}>{Object.entries(statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
