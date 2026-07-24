@@ -15,7 +15,7 @@ export async function loadContracts() {
   const organization = organizations?.[0]
   if (!organization) return { organization: null, contracts: [], processes: [], suppliers: [] }
 
-  const [contractsResult, processesResult, suppliersResult, approvalsResult, notificationsResult, signaturesResult] = await Promise.all([
+  const [contractsResult, processesResult, suppliersResult, approvalsResult, notificationsResult, signaturesResult, deliveriesResult, invoicesResult, projectsResult] = await Promise.all([
     supabase
       .from('contracts')
       .select('*, procurement_processes(reference,title), suppliers(supplier_code,legal_name,trading_name), contract_milestones(*)')
@@ -48,6 +48,9 @@ export async function loadContracts() {
       .from('contract_signatures')
       .select('*')
       .eq('organization_id', organization.id),
+    supabase.from('contract_deliveries').select('*').eq('organization_id', organization.id).order('delivery_date', { ascending: false }),
+    supabase.from('supplier_invoices').select('*').eq('organization_id', organization.id).order('invoice_date', { ascending: false }),
+    supabase.from('finance_projects').select('id,code,name').eq('organization_id', organization.id).order('code'),
   ])
   if (contractsResult.error) throw contractsResult.error
   if (processesResult.error) throw processesResult.error
@@ -55,6 +58,9 @@ export async function loadContracts() {
   if (approvalsResult.error) throw approvalsResult.error
   if (notificationsResult.error) throw notificationsResult.error
   if (signaturesResult.error) throw signaturesResult.error
+  if (deliveriesResult.error) throw deliveriesResult.error
+  if (invoicesResult.error) throw invoicesResult.error
+  if (projectsResult.error) throw projectsResult.error
   return {
     organization,
     contracts: contractsResult.data || [],
@@ -63,6 +69,9 @@ export async function loadContracts() {
     approvals: approvalsResult.data || [],
     notifications: notificationsResult.data || [],
     signatures: signaturesResult.data || [],
+    deliveries: deliveriesResult.data || [],
+    invoices: invoicesResult.data || [],
+    financeProjects: projectsResult.data || [],
   }
 }
 
@@ -102,6 +111,44 @@ export async function recordContractSignature(contractId, party, signatoryName, 
     p_party: party,
     p_signatory_name: signatoryName,
     p_evidence_reference: evidenceReference,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function recordContractDelivery(contractId, values) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('record_contract_delivery', {
+    p_contract_id: contractId,
+    p_milestone_id: values.milestoneId || null,
+    p_reference: values.reference,
+    p_delivery_date: values.date,
+    p_notes: values.notes || null,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function submitSupplierInvoice(contractId, values) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('submit_supplier_invoice', {
+    p_contract_id: contractId,
+    p_delivery_id: values.deliveryId,
+    p_finance_project_id: values.projectId,
+    p_invoice_number: values.number,
+    p_invoice_date: values.date,
+    p_amount: Number(values.amount),
+    p_exchange_rate: Number(values.exchangeRate || 1),
+  })
+  if (error) throw error
+  return data
+}
+
+export async function recordSupplierPayment(invoiceId, reference) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('record_supplier_payment', {
+    p_invoice_id: invoiceId,
+    p_payment_reference: reference,
   })
   if (error) throw error
   return data
