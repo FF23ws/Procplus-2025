@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loadReportingDashboard } from './lib/reports.js'
+import OnboardingChecklist from './OnboardingChecklist.jsx'
 import './dashboard.css'
 
 const statusLabels = { draft: 'Rascunho', pending_approval: 'Aguarda aprovação', published: 'Publicado', evaluation: 'Em avaliação', awarded: 'Adjudicado', cancelled: 'Cancelado', closed: 'Encerrado' }
@@ -28,6 +29,7 @@ export default function DashboardPage() {
   return <main className="dashboard live-dashboard">
     <div className="headline"><div><h1>Visão geral</h1><p>Dados actualizados da sua organização.</p></div><button className="primary compact" onClick={() => navigate('/app/concursos')}>+ Novo processo</button></div>
     {error && <p className="alert error">{error}</p>}
+    <OnboardingChecklist workspace={workspace} />
     <section className="metrics">
       <article><small>PROCESSOS ACTIVOS</small><strong>{data.activeProcesses.length}</strong><span>{workspace.processes.length} processo(s) no total</span></article>
       <article><small>AGUARDAM APROVAÇÃO</small><strong>{data.pending.length}</strong><span className={data.pending.length ? 'warn' : 'up'}>{data.pending.length ? 'Acção necessária' : 'Sem pendências'}</span></article>
