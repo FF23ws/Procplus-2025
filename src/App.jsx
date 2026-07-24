@@ -15,6 +15,7 @@ import CompliancePage from './CompliancePage.jsx'
 import IntegrationsPage from './IntegrationsPage.jsx'
 import NotificationCenter from './NotificationCenter.jsx'
 import DashboardPage from './DashboardPage.jsx'
+import RoleNavigation from './RoleNavigation.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -144,14 +145,7 @@ function Layout() {
   return <div className="shell">
     <aside>
       <div className="logo light small">P<span>+</span><b>procplus</b></div>
-      <nav>
-        <NavLink end to="/app">◫ <span>Visão geral</span></NavLink>
-        <NavLink to="/app/organizacao">◫ <span>Organização</span></NavLink>
-        {['Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Finanças', 'Conformidade', 'Relatórios', 'Documentos', 'Administração', 'Integrações', 'Assistente IA'].map(x =>
-          <NavLink key={x} to={x === 'Assistente IA' ? '/app/ia' : `/app/${x.toLowerCase()}`}>◫ <span>{x}</span></NavLink>
-        )}
-      </nav>
-      <div className="org"><b>ADPP Moçambique</b><small>Plano Enterprise</small></div>
+      <RoleNavigation />
       <button className="logout" onClick={logout}>Terminar sessão</button>
     </aside>
     <section className="workspace">
