@@ -10,7 +10,20 @@ const roleLabels = {
   approver: 'Aprovador',
   finance: 'Finanças',
   auditor: 'Auditor',
+  contract_manager: 'Gestor de contrato',
   viewer: 'Consulta',
+}
+
+const roleCapabilities = {
+  admin: 'Organização, utilizadores, regras e todos os módulos',
+  procurement_manager: 'Concursos, fornecedores, contratos e conformidade',
+  procurement_officer: 'Preparação e gestão operacional dos processos',
+  evaluator: 'Avaliação de propostas e consulta documental',
+  approver: 'Decisões de procurement e financeiras',
+  finance: 'Orçamentos, lançamentos, pagamentos e documentos',
+  auditor: 'Consulta, conformidade, relatórios e trilho de auditoria',
+  contract_manager: 'Contratos, entregas, documentos e acompanhamento',
+  viewer: 'Consulta sem alterações',
 }
 
 export default function OrganizationPage() {
@@ -78,6 +91,15 @@ export default function OrganizationPage() {
     }
   }
 
+  const changeRole = async (member, role) => {
+    setSaving(true); setError(''); setMessage('')
+    try {
+      await updateMember(workspace.organization.id, member.user_id, { role })
+      setMessage('Função do membro actualizada.')
+      await refresh()
+    } catch (err) { setError(err.message) } finally { setSaving(false) }
+  }
+
   if (!workspace) return <main className="dashboard"><div className="empty">A carregar a organização…</div></main>
   if (!workspace.organization) return <main className="dashboard"><div className="empty"><h2>Sem organização associada</h2><p>Contacte o administrador da plataforma.</p></div></main>
 
@@ -110,11 +132,15 @@ export default function OrganizationPage() {
         {workspace.members.map(member => <div className="member-row" key={member.user_id}>
           <div className="avatar">{(member.profiles?.full_name || member.profiles?.email || '?').split(' ').map(x => x[0]).slice(0,2).join('').toUpperCase()}</div>
           <div><b>{member.profiles?.full_name || 'Utilizador'}</b><small>{member.profiles?.email || 'E-mail não disponível'}</small></div>
-          <span className="role-pill">{roleLabels[member.role] || member.role}</span>
+          {member.role === 'owner' ? <span className="role-pill">{roleLabels.owner}</span> : <select value={member.role} onChange={e => changeRole(member, e.target.value)} disabled={saving}>{Object.entries(roleLabels).filter(([key]) => key !== 'owner').map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select>}
           <span className={member.active ? 'status-active' : 'status-inactive'}>{member.active ? 'Activo' : 'Suspenso'}</span>
           {member.role !== 'owner' && <button className="text-button inline" onClick={() => toggleMember(member)} disabled={saving}>{member.active ? 'Suspender' : 'Reactivar'}</button>}
         </div>)}
       </div>
+    </section>
+    <section className="card members-card">
+      <div className="card-title"><div><h3>Matriz de funções</h3><p>Separação de responsabilidades aplicada pela base de dados.</p></div></div>
+      <div className="member-list">{Object.entries(roleCapabilities).map(([role, capability]) => <div className="member-row" key={role}><span className="role-pill">{roleLabels[role]}</span><div><b>{roleLabels[role]}</b><small>{capability}</small></div></div>)}</div>
     </section>
     {workspace.invitations.length > 0 && <section className="card members-card">
       <div className="card-title"><div><h3>Convites pendentes</h3><p>Aguardam criação da conta.</p></div></div>
