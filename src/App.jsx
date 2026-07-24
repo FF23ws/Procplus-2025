@@ -9,6 +9,7 @@ import ContractsPage from './ContractsPage.jsx'
 import ReportsPage from './ReportsPage.jsx'
 import DocumentsPage from './DocumentsPage.jsx'
 import AdminPage from './AdminPage.jsx'
+import AIPage from './AIPage.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -141,8 +142,8 @@ function Layout() {
       <nav>
         <NavLink end to="/app">◫ <span>Visão geral</span></NavLink>
         <NavLink to="/app/organizacao">◫ <span>Organização</span></NavLink>
-        {['Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Relatórios', 'Documentos', 'Administração'].map(x =>
-          <NavLink key={x} to={`/app/${x.toLowerCase()}`}>◫ <span>{x}</span></NavLink>
+        {['Concursos', 'Fornecedores', 'Contratos', 'Aprovações', 'Relatórios', 'Documentos', 'Administração', 'Assistente IA'].map(x =>
+          <NavLink key={x} to={x === 'Assistente IA' ? '/app/ia' : `/app/${x.toLowerCase()}`}>◫ <span>{x}</span></NavLink>
         )}
       </nav>
       <div className="org"><b>ADPP Moçambique</b><small>Plano Enterprise</small></div>
@@ -160,6 +161,7 @@ function Layout() {
         <Route path="relatórios" element={<ReportsPage />} />
         <Route path="documentos" element={<DocumentsPage />} />
         <Route path="administração" element={<AdminPage />} />
+        <Route path="ia" element={<AIPage />} />
         <Route path="*" element={<ComingSoon />} />
       </Routes>
     </section>
