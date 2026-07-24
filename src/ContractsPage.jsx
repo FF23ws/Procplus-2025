@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createContract, createMilestone, loadContracts, recordAwardNotification, recordAwardResponse, submitContractApproval, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
+import { createContract, createMilestone, loadContracts, recordAwardNotification, recordAwardResponse, recordContractSignature, submitContractApproval, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
 
 const emptyForm = {
   document_type: 'contract',
@@ -45,6 +45,7 @@ export default function ContractsPage() {
   const [filter, setFilter] = useState('all')
   const [milestone, setMilestone] = useState({ title: '', due_date: '', amount: '' })
   const [responseNotes, setResponseNotes] = useState('')
+  const [signature, setSignature] = useState({ party: 'organization', signatoryName: '', evidenceReference: '' })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -130,6 +131,20 @@ export default function ContractsPage() {
       await recordAwardResponse(notification.id, response, responseNotes.trim())
       setResponseNotes('')
       setMessage(response === 'accepted' ? 'Aceitação do fornecedor registada.' : 'Rejeição do fornecedor registada.')
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveSignature = async event => {
+    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    try {
+      await recordContractSignature(selected.id, signature.party, signature.signatoryName, signature.evidenceReference)
+      setSignature({ party: signature.party === 'organization' ? 'supplier' : 'organization', signatoryName: '', evidenceReference: '' })
+      setMessage('Assinatura registada com rastreabilidade.')
       await refresh(selected.id)
     } catch (err) {
       setError(err.message)
@@ -242,6 +257,23 @@ export default function ContractsPage() {
               {approval?.status === 'approved' && <p className="alert success">Documento aprovado e pronto para assinatura.</p>}
               {approval?.status === 'changes_requested' && <p className="form-warning">Foram solicitadas alterações. Reveja o documento e volte a submeter.</p>}
               {selected.status === 'draft' && notification?.response_status === 'accepted' && approval?.status !== 'pending' && <button className="primary compact" onClick={requestApproval} disabled={saving}>{saving ? 'A submeter…' : 'Submeter à aprovação'}</button>}
+            </div>
+          })()}
+          {(() => {
+            const signing = workspace.signatures.find(item => item.contract_id === selected.id)
+            if (!signing || !['pending_signature', 'active'].includes(selected.status)) return null
+            const overdue = selected.status === 'pending_signature' && new Date(`${signing.issuance_deadline}T23:59:59`) < new Date()
+            return <div className="contract-approval signature-panel">
+              <h3>Assinaturas e activação</h3>
+              <p className={overdue ? 'alert error' : 'form-warning'}>Prazo de emissão: {new Date(`${signing.issuance_deadline}T00:00:00`).toLocaleDateString('pt-MZ')}{overdue ? ' · Em atraso' : ''}</p>
+              <p>Organização: <b>{signing.organization_signed_at ? `Assinado por ${signing.organization_signatory_name}` : 'Pendente'}</b><br />Fornecedor: <b>{signing.supplier_signed_at ? `Assinado por ${signing.supplier_signatory_name}` : 'Pendente'}</b></p>
+              {selected.status === 'pending_signature' && <form onSubmit={saveSignature}>
+                <label>Parte<select value={signature.party} onChange={e => setSignature({ ...signature, party: e.target.value })}><option value="organization" disabled={Boolean(signing.organization_signed_at)}>Organização</option><option value="supplier" disabled={Boolean(signing.supplier_signed_at)}>Fornecedor</option></select></label>
+                <label>Nome do signatário<input value={signature.signatoryName} onChange={e => setSignature({ ...signature, signatoryName: e.target.value })} required /></label>
+                <label>Referência do comprovativo<input value={signature.evidenceReference} onChange={e => setSignature({ ...signature, evidenceReference: e.target.value })} placeholder="Ex.: assinatura digital, carta ou ficheiro" required /></label>
+                <button className="primary compact" disabled={saving}>{saving ? 'A registar…' : 'Registar assinatura'}</button>
+              </form>}
+              {selected.status === 'active' && <p className="alert success">Documento integralmente assinado e activo desde {new Date(signing.activated_at).toLocaleString('pt-MZ')}.</p>}
             </div>
           })()}
           <label>Estado do contrato<select value={selected.status} onChange={e => changeStatus(e.target.value)} disabled={saving || workspace.approvals.some(item => item.contract_id === selected.id && item.status === 'pending')}>{Object.entries(statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
