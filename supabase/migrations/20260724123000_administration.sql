@@ -22,6 +22,18 @@ create table if not exists public.audit_logs (
   details jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+-- Compatibility with earlier Procplus funding_rules schemas.
+alter table public.funding_rules add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
+alter table public.funding_rules add column if not exists name text;
+alter table public.funding_rules add column if not exists funding_source text;
+alter table public.funding_rules add column if not exists threshold numeric(18,2) default 0;
+alter table public.funding_rules add column if not exists currency text default 'MZN';
+alter table public.funding_rules add column if not exists quotations_required integer default 3;
+alter table public.funding_rules add column if not exists approval_levels integer default 1;
+alter table public.funding_rules add column if not exists active boolean default true;
+alter table public.funding_rules add column if not exists created_by uuid references auth.users(id);
+alter table public.funding_rules add column if not exists created_at timestamptz default now();
+
 alter table public.funding_rules enable row level security;
 alter table public.audit_logs enable row level security;
 create index if not exists funding_rules_org_idx on public.funding_rules(organization_id,active);
