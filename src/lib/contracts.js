@@ -15,7 +15,7 @@ export async function loadContracts() {
   const organization = organizations?.[0]
   if (!organization) return { organization: null, contracts: [], processes: [], suppliers: [] }
 
-  const [contractsResult, processesResult, suppliersResult, approvalsResult, notificationsResult, signaturesResult, deliveriesResult, invoicesResult, projectsResult] = await Promise.all([
+  const [contractsResult, processesResult, suppliersResult, approvalsResult, notificationsResult, signaturesResult, deliveriesResult, invoicesResult, projectsResult, closeoutsResult] = await Promise.all([
     supabase
       .from('contracts')
       .select('*, procurement_processes(reference,title), suppliers(supplier_code,legal_name,trading_name), contract_milestones(*)')
@@ -51,6 +51,7 @@ export async function loadContracts() {
     supabase.from('contract_deliveries').select('*').eq('organization_id', organization.id).order('delivery_date', { ascending: false }),
     supabase.from('supplier_invoices').select('*').eq('organization_id', organization.id).order('invoice_date', { ascending: false }),
     supabase.from('finance_projects').select('id,code,name').eq('organization_id', organization.id).order('code'),
+    supabase.from('contract_closeouts').select('*').eq('organization_id', organization.id),
   ])
   if (contractsResult.error) throw contractsResult.error
   if (processesResult.error) throw processesResult.error
@@ -61,6 +62,7 @@ export async function loadContracts() {
   if (deliveriesResult.error) throw deliveriesResult.error
   if (invoicesResult.error) throw invoicesResult.error
   if (projectsResult.error) throw projectsResult.error
+  if (closeoutsResult.error) throw closeoutsResult.error
   return {
     organization,
     contracts: contractsResult.data || [],
@@ -72,6 +74,7 @@ export async function loadContracts() {
     deliveries: deliveriesResult.data || [],
     invoices: invoicesResult.data || [],
     financeProjects: projectsResult.data || [],
+    closeouts: closeoutsResult.data || [],
   }
 }
 
@@ -149,6 +152,23 @@ export async function recordSupplierPayment(invoiceId, reference) {
   const { data, error } = await supabase.rpc('record_supplier_payment', {
     p_invoice_id: invoiceId,
     p_payment_reference: reference,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function closeContract(contractId, values) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('close_contract', {
+    p_contract_id: contractId,
+    p_final_acceptance_reference: values.finalAcceptanceReference,
+    p_physical_archive_reference: values.physicalArchiveReference,
+    p_digital_archive_reference: values.digitalArchiveReference,
+    p_documents_complete: values.documentsComplete,
+    p_payment_proofs_archived: values.paymentProofsArchived,
+    p_assets_registered: values.assetsRegistered,
+    p_assets_not_applicable: values.assetsNotApplicable,
+    p_notes: values.notes || null,
   })
   if (error) throw error
   return data
