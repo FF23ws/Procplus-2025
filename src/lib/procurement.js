@@ -29,10 +29,12 @@ export async function createProcurementProcess(organizationId, values) {
   const { data: userData, error: userError } = await supabase.auth.getUser()
   if (userError) throw userError
   const reference = `PP-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`
+  const requestedStatus = values.status
   const { data, error } = await supabase
     .from('procurement_processes')
     .insert({
       ...values,
+      status: 'draft',
       organization_id: organizationId,
       created_by: userData.user.id,
       reference,
@@ -40,17 +42,54 @@ export async function createProcurementProcess(organizationId, values) {
     .select()
     .single()
   if (error) throw error
+  if (requestedStatus === 'pending_approval') {
+    return updateProcurementStatus(data.id, requestedStatus)
+  }
   return data
 }
 
-export async function updateProcurementStatus(id, status) {
+export async function previewProcurementRule(organizationId, values) {
   ensureClient()
-  const { data, error } = await supabase
-    .from('procurement_processes')
-    .update({ status })
-    .eq('id', id)
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc('preview_procurement_rule', {
+    p_organization_id: organizationId,
+    p_funding_source: values.funding_source,
+    p_estimated_value: Number(values.estimated_value || 0),
+    p_currency: values.currency,
+    p_method: values.procurement_method,
+    p_deadline: values.deadline ? new Date(values.deadline).toISOString() : null,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function evaluateProcurementProcess(id, targetStatus = null) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('evaluate_procurement_process', {
+    p_process_id: id,
+    p_target_status: targetStatus,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function recordRuleEvidence(id, requirementCode, reference) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('set_procurement_rule_evidence', {
+    p_process_id: id,
+    p_requirement_code: requirementCode,
+    p_evidence_reference: reference,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function updateProcurementStatus(id, status, exceptionJustification = null) {
+  ensureClient()
+  const { data, error } = await supabase.rpc('transition_procurement_process', {
+    p_process_id: id,
+    p_target_status: status,
+    p_exception_justification: exceptionJustification,
+  })
   if (error) throw error
   return data
 }
