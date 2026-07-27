@@ -156,6 +156,7 @@ export default function ProcurementPage() {
       {ruleResult && <section className={`alert ${ruleResult.compliant ? 'success' : 'error'}`}>
         <b>{ruleResult.rule ? `Regra aplicada: ${ruleResult.rule.name}` : 'Nenhuma regra aplicável'}</b>
         {ruleResult.rule && <p>{methodLabels[ruleResult.rule.procurement_method]} · {ruleResult.rule.quotations_required} cotação(ões) · {ruleResult.rule.approval_levels} nível(eis) de aprovação · prazo mínimo de {ruleResult.rule.min_deadline_days} dia(s)</p>}
+        {ruleResult.conversion?.available && ruleResult.conversion.direction !== 'same_currency' && <p>Conversão: {Number(ruleResult.conversion.original_amount).toLocaleString('pt-PT')} {ruleResult.conversion.original_currency} = {Number(ruleResult.conversion.converted_amount).toLocaleString('pt-PT')} {ruleResult.conversion.converted_currency} · taxa {ruleResult.conversion.rate} · {ruleResult.conversion.source}</p>}
         {!ruleResult.compliant && <ul>{ruleResult.violations.map(item => <li key={item.code}>{item.message}</li>)}</ul>}
       </section>}
       <button className="primary compact" disabled={saving}>{saving ? 'A criar…' : 'Criar processo'}</button>
@@ -187,6 +188,7 @@ export default function ProcurementPage() {
           {ruleResult && <section className={`alert ${ruleResult.compliant ? 'success' : 'error'}`}>
             <b>{ruleResult.compliant ? 'Processo conforme' : 'Requisitos pendentes'}</b>
             {ruleResult.rule && <p>{ruleResult.rule.name} · {ruleResult.rule.quotations_required} proposta(s) · {ruleResult.rule.approval_levels} aprovação(ões)</p>}
+            {ruleResult.conversion?.available && ruleResult.conversion.direction !== 'same_currency' && <p>Valor avaliado: {Number(ruleResult.conversion.converted_amount).toLocaleString('pt-PT')} {ruleResult.conversion.converted_currency} · taxa {ruleResult.conversion.rate} ({ruleResult.conversion.source})</p>}
             {!ruleResult.compliant && <ul>{ruleResult.violations.map(item => <li key={item.code}>{item.message}</li>)}</ul>}
           </section>}
           {ruleResult?.missing_documents?.length > 0 && <section>
