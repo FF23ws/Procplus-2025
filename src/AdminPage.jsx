@@ -24,6 +24,69 @@ const emptyRule = {
   committee_required: false, contract_required: false,
 }
 
+const ruleTemplates = [
+  {
+    id: 'eu-direct', group: 'União Europeia', title: 'Compra directa — menos de 5.000 EUR',
+    note: 'Modelo de referência; confirme sempre o contrato e as regras do doador.',
+    values: {
+      name: 'UE · Compra directa < 5.000 EUR', funding_source: 'eu', min_value: 0, threshold: 4999.99,
+      currency: 'EUR', procurement_method: 'direct_award', quotations_required: 1, approval_levels: 1,
+      required_documents_text: 'Requisição de compra, Aprovação, Cotação, Ordem de compra',
+      min_deadline_days: 0, publication_required: false, committee_required: false, contract_required: false,
+    },
+  },
+  {
+    id: 'eu-rfq', group: 'União Europeia', title: 'RFQ — 5.000 a 60.000 EUR',
+    note: 'Modelo de referência; confirme sempre o contrato e as regras do doador.',
+    values: {
+      name: 'UE · RFQ 5.000–60.000 EUR', funding_source: 'eu', min_value: 5000, threshold: 60000,
+      currency: 'EUR', procurement_method: 'request_for_quotation', quotations_required: 3, approval_levels: 3,
+      required_documents_text: 'Requisição de compra, RFQ, Cotações, Matriz comparativa, Declarações de imparcialidade, Relatório de avaliação, Aprovação, Contrato',
+      min_deadline_days: 5, publication_required: false, committee_required: true, contract_required: true,
+    },
+  },
+  {
+    id: 'eu-open', group: 'União Europeia', title: 'Concurso público — acima de 60.000 EUR',
+    note: 'Modelo de referência; confirme sempre o contrato e as regras do doador.',
+    values: {
+      name: 'UE · Concurso público > 60.000 EUR', funding_source: 'eu', min_value: 60000.01, threshold: '',
+      currency: 'EUR', procurement_method: 'open_tender', quotations_required: 3, approval_levels: 4,
+      required_documents_text: 'Requisição de compra, Aprovação do procedimento, Anúncio público, Caderno de encargos, Acta de abertura, Lista de presença, Declarações de imparcialidade, Avaliação técnica, Avaliação financeira, Due diligence, Decisão de adjudicação, Contrato',
+      min_deadline_days: 15, publication_required: true, committee_required: true, contract_required: true,
+    },
+  },
+  {
+    id: 'adpp-small', group: 'Fundos próprios · ADPP 2022', title: 'Compra até 499 USD',
+    note: 'Faixa baseada no Manual ADPP 2022; use a taxa trimestral aprovada para equivalência em MZN.',
+    values: {
+      name: 'ADPP · Compra 0–499 USD', funding_source: 'internal', min_value: 0, threshold: 499,
+      currency: 'USD', procurement_method: 'direct_award', quotations_required: 1, approval_levels: 1,
+      required_documents_text: 'Requisição de compra, Aprovação, Cotação ou RFQ, Ordem de compra, Factura, Guia de remessa, Comprovativo de pagamento, Recibo',
+      min_deadline_days: 0, publication_required: false, committee_required: false, contract_required: false,
+    },
+  },
+  {
+    id: 'adpp-three-quotes', group: 'Fundos próprios · ADPP 2022', title: 'Compra de 500 a 999,99 USD',
+    note: 'Faixa baseada no Manual ADPP 2022; use a taxa trimestral aprovada para equivalência em MZN.',
+    values: {
+      name: 'ADPP · RFQ 500–999,99 USD', funding_source: 'internal', min_value: 500, threshold: 999.99,
+      currency: 'USD', procurement_method: 'request_for_quotation', quotations_required: 3, approval_levels: 2,
+      required_documents_text: 'Requisição de compra, Pedido formal de cotações, Três cotações, Tabela comparativa, QEC-A, Aprovação, NPT ou Ordem de compra, Factura, Guia de remessa, Comprovativo de pagamento, Recibo',
+      min_deadline_days: 3, publication_required: false, committee_required: false, contract_required: false,
+    },
+  },
+  {
+    id: 'adpp-rfq', group: 'Fundos próprios · ADPP 2022', title: 'Compra de 1.000 a 9.999,99 USD',
+    note: 'Faixa baseada no Manual ADPP 2022; confirme RFQ/RFP conforme a complexidade.',
+    values: {
+      name: 'ADPP · RFQ/RFP 1.000–9.999,99 USD', funding_source: 'internal', min_value: 1000, threshold: 9999.99,
+      currency: 'USD', procurement_method: 'request_for_quotation', quotations_required: 3, approval_levels: 2,
+      required_documents_text: 'Requisição de compra, RFQ ou RFP, Três propostas, Declarações de imparcialidade, Tabela comparativa, Relatório da comissão de avaliação, Aprovação, NPT, Ordem de compra ou contrato, Factura, Guia de remessa, Comprovativo de pagamento, Recibo',
+      min_deadline_days: 5, publication_required: false, committee_required: true, contract_required: false,
+    },
+  },
+]
+
 export default function AdminPage() {
   const [data, setData] = useState(null)
   const [form, setForm] = useState(emptyRule)
@@ -60,6 +123,12 @@ export default function AdminPage() {
     catch (e) { setError(e.message) } finally { setSaving(false) }
   }
 
+  const applyTemplate = template => {
+    setForm({ ...emptyRule, ...template.values })
+    setMessage(`Modelo “${template.title}” carregado. Reveja os campos e clique em Activar regra.`)
+    setError('')
+  }
+
   if (!data) return <main className="dashboard"><div className="empty">A carregar a administração…</div></main>
   return <main className="dashboard">
     <div className="headline admin-headline"><div><h1>Administração</h1><p>Gira permissões, regras de procurement e rastreabilidade da plataforma.</p></div><span className="plan-badge">{data.organization?.subscription_plan || 'Enterprise'}</span></div>
@@ -69,6 +138,13 @@ export default function AdminPage() {
       <article><small>UTILIZADORES ACTIVOS</small><strong>{activeMembers}</strong><span>{data.members.length} associados</span></article>
       <article><small>REGRAS ACTIVAS</small><strong>{data.rules.filter(x => x.active).length}</strong><span>Por financiador e faixa de valor</span></article>
       <article><small>EVENTOS DE AUDITORIA</small><strong>{data.logs.length}</strong><span>Últimos 50 eventos</span></article>
+    </section>
+    <section className="card">
+      <div className="card-title"><div><h3>Biblioteca de modelos</h3><p>Pré-configurações editáveis. Nenhum modelo é activado sem revisão.</p></div></div>
+      <div className="admin-rule-list">{ruleTemplates.map(template => <div className="admin-rule" key={template.id}>
+        <div><b>{template.title}</b><small>{template.group}</small><small>{template.note}</small></div>
+        <button className="primary compact" type="button" onClick={() => applyTemplate(template)}>Usar modelo</button>
+      </div>)}</div>
     </section>
     <section className="admin-grid">
       <form className="card settings-form" onSubmit={submit}>
