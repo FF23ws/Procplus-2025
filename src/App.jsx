@@ -34,7 +34,7 @@ function Login() {
   const [resetSent, setResetSent] = useState(false)
   useEffect(() => {
     getSession().then(session => {
-      if (session) navigate('/set-password', { replace: true })
+      if (session) navigate('/app', { replace: true })
     }).catch(() => {})
   }, [navigate])
   const submit = async (e) => {
@@ -142,6 +142,7 @@ function SetPassword() {
 
 function Layout() {
   const navigate = useNavigate()
+  const today = new Intl.DateTimeFormat('pt-PT', { weekday: 'long', day: '2-digit', month: 'long' }).format(new Date()).toUpperCase()
   const logout = async () => { await signOut(); navigate('/login') }
   return <div className="shell">
     <aside>
@@ -150,7 +151,7 @@ function Layout() {
       <button className="logout" onClick={logout}>Terminar sessão</button>
     </aside>
     <section className="workspace">
-      <header><div><small>QUINTA-FEIRA, 23 DE JULHO</small><h2>Bom dia, Fernando</h2></div><div className="header-actions"><NotificationCenter /><div className="avatar">FF</div></div></header>
+      <header><div><small>{today}</small><h2>Bom dia, Fernando</h2></div><div className="header-actions"><NotificationCenter /><div className="avatar">FF</div></div></header>
       <Routes>
         <Route index element={<DashboardPage />} />
         <Route path="organizacao" element={<OrganizationPage />} />
