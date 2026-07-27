@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createFundingRule, loadAdministration, toggleFundingRule } from './lib/admin.js'
+import { createExchangeRate, createFundingRule, loadAdministration, toggleFundingRule } from './lib/admin.js'
 
 const sourceLabels = {
   internal: 'Fundos próprios',
@@ -93,6 +93,10 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [rateForm, setRateForm] = useState({
+    baseCurrency: 'USD', quoteCurrency: 'MZN', rate: '', rateType: 'quarterly',
+    source: '', reference: '', validFrom: '', validTo: '',
+  })
   const refresh = async () => setData(await loadAdministration())
   useEffect(() => { refresh().catch(e => setError(e.message)) }, [])
   const activeMembers = useMemo(() => data?.members.filter(x => x.active).length || 0, [data])
@@ -129,6 +133,17 @@ export default function AdminPage() {
     setError('')
   }
 
+  const submitRate = async event => {
+    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    try {
+      if (rateForm.baseCurrency === rateForm.quoteCurrency) throw new Error('As moedas de origem e destino devem ser diferentes.')
+      await createExchangeRate(data.organization.id, rateForm)
+      setRateForm({ baseCurrency: 'USD', quoteCurrency: 'MZN', rate: '', rateType: 'quarterly', source: '', reference: '', validFrom: '', validTo: '' })
+      setMessage('Taxa cambial registada. O motor já pode utilizá-la dentro do período indicado.')
+      await refresh()
+    } catch (e) { setError(e.message) } finally { setSaving(false) }
+  }
+
   if (!data) return <main className="dashboard"><div className="empty">A carregar a administração…</div></main>
   return <main className="dashboard">
     <div className="headline admin-headline"><div><h1>Administração</h1><p>Gira permissões, regras de procurement e rastreabilidade da plataforma.</p></div><span className="plan-badge">{data.organization?.subscription_plan || 'Enterprise'}</span></div>
@@ -145,6 +160,25 @@ export default function AdminPage() {
         <div><b>{template.title}</b><small>{template.group}</small><small>{template.note}</small></div>
         <button className="primary compact" type="button" onClick={() => applyTemplate(template)}>Usar modelo</button>
       </div>)}</div>
+    </section>
+    <section className="admin-grid">
+      <form className="card settings-form" onSubmit={submitRate}>
+        <div className="card-title"><div><h3>Nova taxa cambial</h3><p>Registe a taxa aprovada, a fonte e o período de validade.</p></div></div>
+        <div className="form-pair">
+          <label>Moeda de origem<select value={rateForm.baseCurrency} onChange={e => setRateForm({...rateForm,baseCurrency:e.target.value})}>{['USD','EUR','MZN','ZAR','GBP'].map(x => <option key={x}>{x}</option>)}</select></label>
+          <label>Moeda de destino<select value={rateForm.quoteCurrency} onChange={e => setRateForm({...rateForm,quoteCurrency:e.target.value})}>{['MZN','USD','EUR','ZAR','GBP'].map(x => <option key={x}>{x}</option>)}</select></label>
+        </div>
+        <label>Taxa<input type="number" min="0.00000001" step="0.00000001" value={rateForm.rate} onChange={e => setRateForm({...rateForm,rate:e.target.value})} placeholder="Ex.: MZN por 1 USD/EUR" required /></label>
+        <label>Tipo<select value={rateForm.rateType} onChange={e => setRateForm({...rateForm,rateType:e.target.value})}><option value="quarterly">Taxa trimestral</option><option value="tranche">Taxa da tranche</option><option value="contract">Taxa contratual</option><option value="donor">Taxa do doador</option><option value="bank">Taxa bancária</option><option value="manual">Manual</option></select></label>
+        <label>Fonte<input value={rateForm.source} onChange={e => setRateForm({...rateForm,source:e.target.value})} placeholder="Manual, contrato, banco ou comunicação do doador" required /></label>
+        <label>Referência<input value={rateForm.reference} onChange={e => setRateForm({...rateForm,reference:e.target.value})} placeholder="Documento, tranche ou aprovação" /></label>
+        <div className="form-pair"><label>Válida desde<input type="date" value={rateForm.validFrom} onChange={e => setRateForm({...rateForm,validFrom:e.target.value})} required /></label><label>Válida até<input type="date" value={rateForm.validTo} onChange={e => setRateForm({...rateForm,validTo:e.target.value})} /></label></div>
+        <button className="primary compact" disabled={saving}>{saving ? 'A guardar…' : 'Registar taxa'}</button>
+      </form>
+      <section className="card">
+        <div className="card-title"><div><h3>Histórico cambial</h3><p>{data.rates?.length || 0} taxa(s) registada(s)</p></div></div>
+        <div className="admin-rule-list">{data.rates?.length ? data.rates.map(rate => <div className="admin-rule" key={rate.id}><div><b>1 {rate.base_currency} = {Number(rate.rate).toLocaleString('pt-PT', { maximumFractionDigits: 8 })} {rate.quote_currency}</b><small>{rate.source} · {rate.rate_type} · {new Date(rate.valid_from).toLocaleDateString('pt-PT')}{rate.valid_to ? ` a ${new Date(rate.valid_to).toLocaleDateString('pt-PT')}` : ' em diante'}</small><small>{rate.reference || 'Sem referência adicional'}</small></div><span className={rate.active ? 'status-active' : 'status-inactive'}>{rate.active ? 'Activa' : 'Inactiva'}</span></div>) : <p className="list-empty">Ainda não existem taxas cambiais.</p>}</div>
+      </section>
     </section>
     <section className="admin-grid">
       <form className="card settings-form" onSubmit={submit}>
