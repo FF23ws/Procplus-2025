@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createContract, createMilestone, loadContracts, recordAwardNotification, recordAwardResponse, recordContractDelivery, recordContractSignature, recordSupplierPayment, submitContractApproval, submitSupplierInvoice, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
+import { closeContract, createContract, createMilestone, loadContracts, recordAwardNotification, recordAwardResponse, recordContractDelivery, recordContractSignature, recordSupplierPayment, submitContractApproval, submitSupplierInvoice, updateContractStatus, updateMilestoneStatus } from './lib/contracts.js'
 
 const emptyForm = {
   document_type: 'contract',
@@ -49,6 +49,7 @@ export default function ContractsPage() {
   const [delivery, setDelivery] = useState({ milestoneId: '', reference: '', date: new Date().toISOString().slice(0, 10), notes: '' })
   const [invoice, setInvoice] = useState({ deliveryId: '', projectId: '', number: '', date: new Date().toISOString().slice(0, 10), amount: '', exchangeRate: 1 })
   const [paymentReference, setPaymentReference] = useState('')
+  const [closeout, setCloseout] = useState({ finalAcceptanceReference: '', physicalArchiveReference: '', digitalArchiveReference: '', documentsComplete: false, paymentProofsArchived: false, assetsRegistered: false, assetsNotApplicable: false, notes: '' })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -183,6 +184,15 @@ export default function ContractsPage() {
       await recordSupplierPayment(invoiceId, paymentReference.trim())
       setPaymentReference('')
       setMessage('Pagamento registado e comprovativo marcado como pago.')
+      await refresh(selected.id)
+    } catch (err) { setError(err.message) } finally { setSaving(false) }
+  }
+
+  const saveCloseout = async event => {
+    event.preventDefault(); setSaving(true); setError(''); setMessage('')
+    try {
+      await closeContract(selected.id, closeout)
+      setMessage('Contrato encerrado e processo preparado para auditoria.')
       await refresh(selected.id)
     } catch (err) { setError(err.message) } finally { setSaving(false) }
   }
@@ -356,6 +366,30 @@ export default function ContractsPage() {
               {deliveries.length > 0 && workspace.financeProjects.length === 0 && <p className="form-warning">Crie primeiro um projecto no módulo Financeiro para submeter a factura.</p>}
               {invoices.map(item => <div className="milestone-row" key={item.id}><div><b>Factura {item.invoice_number} · {money(item.amount, item.currency)}</b><small>{item.status === 'pending_approval' ? 'Aguarda aprovação financeira' : item.status === 'approved' ? 'Aprovada para pagamento' : item.status === 'paid' ? `Paga · ${item.payment_reference}` : 'Rejeitada'}</small></div>{item.status === 'approved' ? <div><input value={paymentReference} onChange={e => setPaymentReference(e.target.value)} placeholder="Referência bancária" /><button className="primary compact" onClick={() => savePayment(item.id)} disabled={saving}>Marcar paga</button></div> : <span className="process-status">{item.status}</span>}</div>)}
             </div>
+          })()}
+          {(() => {
+            const completedCloseout = workspace.closeouts.find(item => item.contract_id === selected.id)
+            if (completedCloseout) return <div className="milestone-section"><h3>Fecho e arquivo de auditoria</h3><p className="alert success">Processo encerrado em {new Date(completedCloseout.closed_at).toLocaleString('pt-MZ')}.</p><dl><div><dt>Aceitação final</dt><dd>{completedCloseout.final_acceptance_reference}</dd></div><div><dt>Arquivo físico</dt><dd>{completedCloseout.physical_archive_reference}</dd></div><div><dt>Arquivo digital</dt><dd>{completedCloseout.digital_archive_reference}</dd></div><div><dt>Bens</dt><dd>{completedCloseout.assets_registered ? 'Registados' : 'Não aplicável'}</dd></div></dl></div>
+            if (selected.status !== 'active') return null
+            const contractInvoices = workspace.invoices.filter(item => item.contract_id === selected.id)
+            const hasDelivery = workspace.deliveries.some(item => item.contract_id === selected.id)
+            const milestonesReady = selected.contract_milestones.every(item => ['completed', 'cancelled'].includes(item.status))
+            const invoicesReady = contractInvoices.length > 0 && contractInvoices.every(item => item.status === 'paid')
+            return <form className="milestone-section procurement-form closeout-form" onSubmit={saveCloseout}>
+              <h3>Fecho e arquivo de auditoria</h3>
+              <p>Estado automático: entrega {hasDelivery ? '✓' : 'pendente'} · marcos {milestonesReady ? '✓' : 'pendentes'} · pagamentos {invoicesReady ? '✓' : 'pendentes'}</p>
+              <div className="form-pair">
+                <label>Referência da aceitação final<input required value={closeout.finalAcceptanceReference} onChange={e => setCloseout({ ...closeout, finalAcceptanceReference: e.target.value })} /></label>
+                <label>Referência do arquivo físico<input required value={closeout.physicalArchiveReference} onChange={e => setCloseout({ ...closeout, physicalArchiveReference: e.target.value })} /></label>
+                <label className="span-two">Referência/link do arquivo digital<input required value={closeout.digitalArchiveReference} onChange={e => setCloseout({ ...closeout, digitalArchiveReference: e.target.value })} /></label>
+                <label><input type="checkbox" checked={closeout.documentsComplete} onChange={e => setCloseout({ ...closeout, documentsComplete: e.target.checked })} /> Processo documental completo</label>
+                <label><input type="checkbox" checked={closeout.paymentProofsArchived} onChange={e => setCloseout({ ...closeout, paymentProofsArchived: e.target.checked })} /> Pagamentos, recibos e comprovativos arquivados</label>
+                <label><input type="checkbox" checked={closeout.assetsRegistered} onChange={e => setCloseout({ ...closeout, assetsRegistered: e.target.checked, assetsNotApplicable: e.target.checked ? false : closeout.assetsNotApplicable })} /> Bens etiquetados e registados no inventário</label>
+                <label><input type="checkbox" checked={closeout.assetsNotApplicable} onChange={e => setCloseout({ ...closeout, assetsNotApplicable: e.target.checked, assetsRegistered: e.target.checked ? false : closeout.assetsRegistered })} /> Bens não aplicáveis</label>
+                <label className="span-two">Notas de fecho<textarea rows="3" value={closeout.notes} onChange={e => setCloseout({ ...closeout, notes: e.target.value })} /></label>
+              </div>
+              <button className="primary compact" disabled={saving || !hasDelivery || !milestonesReady || !invoicesReady}>{saving ? 'A encerrar…' : 'Encerrar contrato e processo'}</button>
+            </form>
           })()}
         </>}
       </aside>
