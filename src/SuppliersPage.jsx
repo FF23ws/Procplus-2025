@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createSupplier, loadSuppliers, updateSupplierAssessment } from './lib/suppliers.js'
+import { createSupplier, loadSuppliers, manageSupplierPortalAccess, updateSupplierAssessment } from './lib/suppliers.js'
 
 const emptyForm = {
   legal_name: '',
@@ -23,6 +23,8 @@ const statusLabels = {
 
 const riskLabels = { low: 'Baixo', medium: 'Médio', high: 'Alto' }
 const typeLabels = { company: 'Empresa', individual: 'Empresário individual', ngo: 'ONG / Associação' }
+const portalRoleLabels = { primary_contact: 'Contacto principal', contributor: 'Colaborador' }
+const invitationStatusLabels = { pending: 'Convite pendente', accepted: 'Aceite', cancelled: 'Cancelado', expired: 'Expirado' }
 
 export default function SuppliersPage() {
   const [workspace, setWorkspace] = useState(null)
@@ -32,6 +34,7 @@ export default function SuppliersPage() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [assessment, setAssessment] = useState({ status: 'under_review', score: 0, risk_level: 'medium', prequalified_until: '', notes: '' })
+  const [portalForm, setPortalForm] = useState({ email: '', role: 'primary_contact' })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -109,6 +112,28 @@ export default function SuppliersPage() {
   const chooseSupplier = (supplier) => {
     setSelected(supplier)
     syncAssessment(supplier)
+    setPortalForm({ email: supplier.email || '', role: 'primary_contact' })
+  }
+
+  const portalInvitations = selected ? (workspace.invitations || []).filter(item => item.supplier_id === selected.id) : []
+  const portalUsers = selected ? (workspace.portalUsers || []).filter(item => item.supplier_id === selected.id) : []
+
+  const managePortal = async (action, values = {}) => {
+    setSaving(true); setError(''); setMessage('')
+    try {
+      const result = await manageSupplierPortalAccess(action, { supplierId: selected.id, ...values })
+      setMessage(result.message)
+      await refresh(selected.id)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const invitePortalUser = async event => {
+    event.preventDefault()
+    await managePortal('invite', portalForm)
   }
 
   if (!workspace) return <main className="dashboard"><div className="empty">A carregar os fornecedores…</div></main>
@@ -166,6 +191,27 @@ export default function SuppliersPage() {
             <div><dt>Risco</dt><dd>{riskLabels[selected.risk_level]}</dd></div>
           </dl>
           <div className="category-list">{(selected.categories || []).map(category => <span key={category}>{category}</span>)}</div>
+          <section className="supplier-access">
+            <div className="supplier-access-title"><div><h3>Acesso ao Portal</h3><p>Convide e controle os representantes deste fornecedor.</p></div><span>{portalUsers.filter(item => item.active).length} activo(s)</span></div>
+            <form className="supplier-invite-form" onSubmit={invitePortalUser}>
+              <label>E-mail do representante<input type="email" value={portalForm.email} onChange={e => setPortalForm({ ...portalForm, email: e.target.value })} required /></label>
+              <label>Perfil<select value={portalForm.role} onChange={e => setPortalForm({ ...portalForm, role: e.target.value })}>{Object.entries(portalRoleLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+              <button className="primary compact" disabled={saving}>{saving ? 'A processar…' : 'Convidar para o portal'}</button>
+            </form>
+            {portalUsers.map(item => <div className="portal-access-row" key={item.id}>
+              <div><b>{item.profiles?.full_name || item.profiles?.email || 'Representante'}</b><small>{item.profiles?.email} · {portalRoleLabels[item.role]}</small>{item.last_access_at && <small>Último acesso: {new Date(item.last_access_at).toLocaleString('pt-MZ')}</small>}</div>
+              <span className={item.active ? 'access-active' : 'access-suspended'}>{item.active ? 'Activo' : 'Suspenso'}</span>
+              <button type="button" className="text-button inline" disabled={saving} onClick={() => managePortal(item.active ? 'suspend' : 'activate', { accessId: item.id })}>{item.active ? 'Suspender' : 'Reactivar'}</button>
+            </div>)}
+            {portalInvitations.filter(item => item.status !== 'accepted').map(item => <div className="portal-access-row invitation" key={item.id}>
+              <div><b>{item.email}</b><small>{portalRoleLabels[item.role]} · expira em {new Date(item.expires_at).toLocaleDateString('pt-MZ')}</small></div>
+              <span className={`invite-${item.status}`}>{invitationStatusLabels[item.status]}</span>
+              <div className="portal-access-actions">
+                {item.status === 'pending' && <><button type="button" className="text-button inline" disabled={saving} onClick={() => managePortal('resend', { email: item.email, role: item.role })}>Reenviar</button><button type="button" className="text-button inline danger" disabled={saving} onClick={() => managePortal('cancel', { invitationId: item.id })}>Cancelar</button></>}
+              </div>
+            </div>)}
+            {!portalUsers.length && !portalInvitations.length && <p className="portal-access-empty">Ainda não existem representantes ou convites.</p>}
+          </section>
           <form className="assessment-form" onSubmit={saveAssessment}>
             <h3>Pré‑qualificação</h3>
             <div className="form-pair">
