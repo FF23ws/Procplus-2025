@@ -38,6 +38,30 @@ using (public.has_organization_role(
   array['owner','admin','procurement_manager','procurement_officer','evaluator','auditor']
 ));
 
+drop policy if exists supplier_portal_invitations_internal_manage on public.supplier_portal_invitations;
+create policy supplier_portal_invitations_internal_manage
+on public.supplier_portal_invitations for all to authenticated
+using (public.has_organization_role(
+  organization_id,
+  array['owner','admin','procurement_manager','procurement_officer']
+))
+with check (public.has_organization_role(
+  organization_id,
+  array['owner','admin','procurement_manager','procurement_officer']
+));
+
+drop policy if exists supplier_portal_users_internal_manage on public.supplier_portal_users;
+create policy supplier_portal_users_internal_manage
+on public.supplier_portal_users for update to authenticated
+using (public.has_organization_role(
+  organization_id,
+  array['owner','admin','procurement_manager','procurement_officer']
+))
+with check (public.has_organization_role(
+  organization_id,
+  array['owner','admin','procurement_manager','procurement_officer']
+));
+
 create or replace function public.claim_supplier_portal_access()
 returns integer
 language plpgsql
@@ -84,7 +108,8 @@ begin
 end;
 $$;
 
-grant select on public.supplier_portal_invitations to authenticated;
+grant select, insert, update on public.supplier_portal_invitations to authenticated;
+grant update on public.supplier_portal_users to authenticated;
 grant execute on function public.claim_supplier_portal_access() to authenticated;
 
 commit;
