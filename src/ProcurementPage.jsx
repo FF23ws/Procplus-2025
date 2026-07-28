@@ -10,6 +10,10 @@ const emptyForm = {
   currency: 'MZN',
   deadline: '',
   status: 'draft',
+  visibility: 'registered',
+  category: '',
+  location: '',
+  show_estimated_value: false,
 }
 
 const statusLabels = {
@@ -36,6 +40,13 @@ const methodLabels = {
   open_tender: 'Concurso público',
   restricted_tender: 'Concurso restrito',
   direct_award: 'Ajuste directo',
+}
+const visibilityLabels = {
+  public: 'Público — qualquer visitante',
+  registered: 'Fornecedores registados',
+  prequalified: 'Fornecedores pré-qualificados',
+  invited: 'Apenas fornecedores convidados',
+  internal: 'Uso interno',
 }
 
 const money = (value, currency) => new Intl.NumberFormat('pt-MZ', {
@@ -151,6 +162,10 @@ export default function ProcurementPage() {
         <label>Moeda<select value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}><option>MZN</option><option>USD</option><option>EUR</option><option>ZAR</option></select></label>
         <label>Prazo para propostas<input type="datetime-local" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} /></label>
         <label>Estado inicial<select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option value="draft">Rascunho</option><option value="pending_approval">Enviar para aprovação</option></select></label>
+        <label>Visibilidade<select value={form.visibility} onChange={e => setForm({ ...form, visibility: e.target.value })}>{Object.entries(visibilityLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
+        <label>Categoria<input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ex.: Informática, construção, consultoria" /></label>
+        <label>Local de execução<input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Ex.: Maputo, Sofala ou Nacional" /></label>
+        <label className="check-row-public"><input type="checkbox" checked={form.show_estimated_value} onChange={e => setForm({ ...form, show_estimated_value: e.target.checked })} /> Mostrar valor estimado no anúncio público</label>
         <label className="span-two">Descrição<textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows="4" /></label>
       </div>
       {ruleResult && <section className={`alert ${ruleResult.compliant ? 'success' : 'error'}`}>
@@ -183,6 +198,8 @@ export default function ProcurementPage() {
             <div><dt>Método</dt><dd>{methodLabels[selected.procurement_method]}</dd></div>
             <div><dt>Financiamento</dt><dd>{fundLabels[selected.funding_source]}</dd></div>
             <div><dt>Prazo</dt><dd>{selected.deadline ? new Date(selected.deadline).toLocaleString('pt-PT') : 'Não definido'}</dd></div>
+            <div><dt>Visibilidade</dt><dd>{visibilityLabels[selected.visibility || 'registered']}</dd></div>
+            <div><dt>Categoria / Local</dt><dd>{selected.category || 'Geral'}<br />{selected.location || 'Não indicado'}</dd></div>
           </dl>
           {selected.description && <p className="detail-description">{selected.description}</p>}
           {ruleResult && <section className={`alert ${ruleResult.compliant ? 'success' : 'error'}`}>
