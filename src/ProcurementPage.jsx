@@ -26,6 +26,16 @@ const statusLabels = {
   closed: 'Encerrado',
 }
 
+const allowedTransitions = {
+  draft: ['pending_approval', 'cancelled'],
+  pending_approval: ['draft', 'cancelled'],
+  published: ['evaluation', 'cancelled'],
+  evaluation: ['awarded', 'cancelled'],
+  awarded: [],
+  cancelled: [],
+  closed: [],
+}
+
 const fundLabels = {
   internal: 'Fundos próprios',
   eu: 'União Europeia',
@@ -216,7 +226,10 @@ export default function ProcurementPage() {
             </div>)}
           </section>}
           {!ruleResult?.compliant && selected.status === 'draft' && <label>Justificação de excepção<textarea value={exception} onChange={e => setException(e.target.value)} rows="3" placeholder="Obrigatória para submeter um processo não conforme. Será sujeita a 3 níveis de aprovação." /></label>}
-          <label>Alterar estado<select value={selected.status} onChange={e => changeStatus(e.target.value)} disabled={saving}>{Object.entries(statusLabels).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></label>
+          <label>Próxima etapa<select value={selected.status} onChange={e => changeStatus(e.target.value)} disabled={saving || !allowedTransitions[selected.status]?.length}>
+            <option value={selected.status}>{statusLabels[selected.status]}</option>
+            {(allowedTransitions[selected.status] || []).map(status => <option key={status} value={status}>{statusLabels[status]}</option>)}
+          </select></label>
         </>}
       </aside>
     </section>}
