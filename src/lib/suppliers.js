@@ -15,13 +15,18 @@ export async function loadSuppliers() {
   const organization = organizations?.[0]
   if (!organization) return { organization: null, suppliers: [] }
 
-  const { data, error } = await supabase
-    .from('suppliers')
-    .select('*')
-    .eq('organization_id', organization.id)
-    .order('created_at', { ascending: false })
-  if (error) throw error
-  return { organization, suppliers: data || [] }
+  const [suppliers, invitations, portalUsers] = await Promise.all([
+    supabase.from('suppliers').select('*').eq('organization_id', organization.id).order('created_at', { ascending: false }),
+    supabase.from('supplier_portal_invitations').select('*').eq('organization_id', organization.id).order('created_at', { ascending: false }),
+    supabase.from('supplier_portal_users').select('id,supplier_id,user_id,role,active,created_at,last_access_at,profiles(full_name,email)').eq('organization_id', organization.id).order('created_at'),
+  ])
+  for (const result of [suppliers, invitations, portalUsers]) if (result.error) throw result.error
+  return {
+    organization,
+    suppliers: suppliers.data || [],
+    invitations: invitations.data || [],
+    portalUsers: portalUsers.data || [],
+  }
 }
 
 export async function createSupplier(organizationId, values) {
@@ -52,5 +57,22 @@ export async function updateSupplierAssessment(id, values) {
     .select()
     .single()
   if (error) throw error
+  return data
+}
+
+export async function manageSupplierPortalAccess(action, values) {
+  ensureClient()
+  const { data, error } = await supabase.functions.invoke('supplier-portal-access', {
+    body: { action, ...values },
+  })
+  if (error) {
+    let message = error.message
+    try {
+      const payload = await error.context?.json()
+      if (payload?.error) message = payload.error
+    } catch {}
+    throw new Error(message)
+  }
+  if (data?.error) throw new Error(data.error)
   return data
 }
