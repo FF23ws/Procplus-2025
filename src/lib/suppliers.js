@@ -62,17 +62,60 @@ export async function updateSupplierAssessment(id, values) {
 
 export async function manageSupplierPortalAccess(action, values) {
   ensureClient()
-  const { data, error } = await supabase.functions.invoke('supplier-portal-access', {
-    body: { action, ...values },
-  })
-  if (error) {
-    let message = error.message
-    try {
-      const payload = await error.context?.json()
-      if (payload?.error) message = payload.error
-    } catch {}
-    throw new Error(message)
+  if (action === 'invite' || action === 'resend') {
+    const email = values.email.trim().toLowerCase()
+    const { data: current, error: currentError } = await supabase
+      .from('supplier_portal_invitations')
+      .select('id')
+      .eq('supplier_id', values.supplierId)
+      .eq('email', email)
+      .eq('status', 'pending')
+      .maybeSingle()
+    if (currentError) throw currentError
+    const invitation = {
+      organization_id: values.organizationId,
+      supplier_id: values.supplierId,
+      email,
+      role: values.role,
+      status: 'pending',
+      invited_at: new Date().toISOString(),
+      last_sent_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
+      accepted_at: null,
+      accepted_by: null,
+    }
+    const invitationQuery = current
+      ? supabase.from('supplier_portal_invitations').update(invitation).eq('id', current.id)
+      : supabase.from('supplier_portal_invitations').insert(invitation)
+    const { error: invitationError } = await invitationQuery
+    if (invitationError) throw invitationError
+    const { error: authError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/portal-fornecedor`,
+        data: { account_type: 'supplier', supplier_id: values.supplierId },
+      },
+    })
+    if (authError) throw authError
+    return { message: action === 'resend' ? 'Convite reenviado com sucesso.' : 'Convite enviado com sucesso.' }
   }
-  if (data?.error) throw new Error(data.error)
-  return data
+  if (action === 'cancel') {
+    const { error } = await supabase.from('supplier_portal_invitations')
+      .update({ status: 'cancelled' })
+      .eq('id', values.invitationId)
+      .eq('supplier_id', values.supplierId)
+      .eq('status', 'pending')
+    if (error) throw error
+    return { message: 'Convite cancelado.' }
+  }
+  if (action === 'suspend' || action === 'activate') {
+    const { error } = await supabase.from('supplier_portal_users')
+      .update({ active: action === 'activate' })
+      .eq('id', values.accessId)
+      .eq('supplier_id', values.supplierId)
+    if (error) throw error
+    return { message: action === 'activate' ? 'Acesso reactivado.' : 'Acesso suspenso.' }
+  }
+  throw new Error('Acção desconhecida.')
 }
