@@ -15,7 +15,8 @@ const response = (body: unknown, status = 200) =>
     headers: { ...cors, "Content-Type": "application/json" },
   });
 
-Deno.serve(async (request) => {
+export default {
+ async fetch(request: Request) {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return response({ error: "Método não permitido." }, 405);
 
@@ -148,4 +149,5 @@ Deno.serve(async (request) => {
   } catch (error) {
     return response({ error: error instanceof Error ? error.message : "Erro interno." }, 400);
   }
-});
+ }
+};
