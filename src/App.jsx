@@ -17,6 +17,7 @@ import NotificationCenter from './NotificationCenter.jsx'
 import DashboardPage from './DashboardPage.jsx'
 import RoleNavigation from './RoleNavigation.jsx'
 import EvaluationsPage from './EvaluationsPage.jsx'
+import { SupplierPortalLogin, SupplierPortalProtected } from './SupplierPortalPage.jsx'
 
 // Production entrypoint: organization, procurement, supplier, approval and contract workspaces.
 const tenders = [
@@ -203,4 +204,4 @@ function Protected() {
   if (session === undefined) return <main className="loading-page">A validar a sessão…</main>
   return session ? <Layout /> : <Navigate to="/login" replace />
 }
-export default function App() { return <Routes><Route path="/login" element={<Login />} /><Route path="/set-password" element={<SetPassword />} /><Route path="/app/*" element={<Protected />} /><Route path="*" element={<Navigate to="/app" replace />} /></Routes> }
+export default function App() { return <Routes><Route path="/login" element={<Login />} /><Route path="/fornecedor" element={<SupplierPortalLogin />} /><Route path="/portal-fornecedor" element={<SupplierPortalProtected />} /><Route path="/set-password" element={<SetPassword />} /><Route path="/app/*" element={<Protected />} /><Route path="*" element={<Navigate to="/app" replace />} /></Routes> }
