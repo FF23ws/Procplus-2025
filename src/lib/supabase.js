@@ -31,9 +31,9 @@ export async function sendPasswordReset(email) {
   })
   if (error) throw error
 }
-export async function signInWithGoogle() {
+export async function signInWithGoogle(redirectPath = '/app') {
   if (!supabase) throw new Error('Configure primeiro as chaves do Supabase.')
-  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/app` } })
+  const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}${redirectPath}` } })
   if (error) throw error
 }
 export async function signOut() {
