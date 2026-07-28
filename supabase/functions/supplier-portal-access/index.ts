@@ -1,4 +1,4 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -15,8 +15,7 @@ const response = (body: unknown, status = 200) =>
     headers: { ...cors, "Content-Type": "application/json" },
   });
 
-export default {
- async fetch(request: Request) {
+serve(async request => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return response({ error: "Método não permitido." }, 405);
 
@@ -149,5 +148,4 @@ export default {
   } catch (error) {
     return response({ error: error instanceof Error ? error.message : "Erro interno." }, 400);
   }
- }
-};
+});
