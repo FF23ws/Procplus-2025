@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { getSession, onAuthStateChange, signIn, signInWithGoogle, signOut } from './lib/supabase.js'
+import { getSession, onAuthStateChange, signIn, signOut } from './lib/supabase.js'
 import { loadSupplierPortal, submitPortalBid, updatePortalSupplier, uploadPortalDocument } from './lib/supplierPortal.js'
 import './supplier-portal.css'
 
@@ -37,7 +37,6 @@ export function SupplierPortalLogin() {
       <label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} required /></label>
       <label>Palavra-passe<input type="password" value={password} onChange={e=>setPassword(e.target.value)} required /></label>
       {error && <p className="alert error">{error}</p>}<button className="primary" disabled={loading}>{loading?'A entrar…':'Entrar'}</button>
-      <button type="button" className="google" onClick={()=>signInWithGoogle('/portal-fornecedor').catch(err=>setError(err.message))}>G&nbsp;&nbsp; Continuar com Google</button>
       <small className="portal-help">Ainda não tem acesso? Contacte a organização compradora para registar o seu e-mail e enviar o convite.</small>
     </form></section>
   </main>
