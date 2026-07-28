@@ -31,6 +31,8 @@ const daysUntil = date => date ? Math.ceil((new Date(date) - new Date()) / 86400
 export default function ReportsPage() {
   const [workspace, setWorkspace] = useState(null)
   const [period, setPeriod] = useState('all')
+  const [format, setFormat] = useState('pdf')
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -46,22 +48,41 @@ export default function ReportsPage() {
     return workspace.processes.filter(item => new Date(item.created_at) >= boundary)
   }, [workspace, period])
 
-  const dashboard = useMemo(() => {
+  const filteredWorkspace = useMemo(() => {
     if (!workspace) return null
+    const periodLabel = period === 'all' ? 'Todo o período' : `Últimos ${period} meses`
+    if (period === 'all') return { ...workspace, periodLabel }
+    const boundary = new Date()
+    boundary.setMonth(boundary.getMonth() - Number(period))
+    const inPeriod = value => !value || new Date(value) >= boundary
+    return {
+      ...workspace,
+      periodLabel,
+      processes,
+      contracts: workspace.contracts.filter(item => inPeriod(item.created_at)),
+      approvals: workspace.approvals.filter(item => inPeriod(item.submitted_at)),
+      financeEntries: workspace.financeEntries.filter(item => inPeriod(item.document_date)),
+      controls: workspace.controls.filter(item => inPeriod(item.created_at)),
+    }
+  }, [workspace, period, processes])
+
+  const dashboard = useMemo(() => {
+    if (!filteredWorkspace) return null
+    const data = filteredWorkspace
     const activeProcesses = processes.filter(item => !['cancelled', 'closed'].includes(item.status))
     const mznValue = activeProcesses.filter(item => item.currency === 'MZN').reduce((sum, item) => sum + Number(item.estimated_value), 0)
-    const approved = workspace.approvals.filter(item => item.status === 'approved').length
-    const decided = workspace.approvals.filter(item => item.status !== 'pending').length
+    const approved = data.approvals.filter(item => item.status === 'approved').length
+    const decided = data.approvals.filter(item => item.status !== 'pending').length
     const approvalRate = decided ? Math.round((approved / decided) * 100) : 0
-    const prequalified = workspace.suppliers.filter(item => item.status === 'prequalified').length
-    const activeContracts = workspace.contracts.filter(item => item.status === 'active')
-    const contractedMzn = workspace.contracts.filter(item => item.currency === 'MZN' && !['cancelled', 'terminated'].includes(item.status))
+    const prequalified = data.suppliers.filter(item => item.status === 'prequalified').length
+    const activeContracts = data.contracts.filter(item => item.status === 'active')
+    const contractedMzn = data.contracts.filter(item => item.currency === 'MZN' && !['cancelled', 'terminated'].includes(item.status))
       .reduce((sum, item) => sum + Number(item.total_value), 0)
-    const approvedBudget = workspace.financeProjects.reduce((sum, item) => sum + Number(item.approved_budget || 0), 0)
-    const committedMzn = workspace.financeProjects.reduce((sum, item) => sum + Number(item.committed_mzn || 0), 0)
-    const spentMzn = workspace.financeProjects.reduce((sum, item) => sum + Number(item.spent_mzn || 0), 0)
-    const compliantControls = workspace.controls.filter(item => item.status === 'compliant').length
-    const complianceScore = workspace.controls.length ? Math.round((compliantControls / workspace.controls.length) * 100) : 0
+    const approvedBudget = data.financeProjects.reduce((sum, item) => sum + Number(item.approved_budget || 0), 0)
+    const committedMzn = data.financeProjects.reduce((sum, item) => sum + Number(item.committed_mzn || 0), 0)
+    const spentMzn = data.financeProjects.reduce((sum, item) => sum + Number(item.spent_mzn || 0), 0)
+    const compliantControls = data.controls.filter(item => item.status === 'compliant').length
+    const complianceScore = data.controls.length ? Math.round((compliantControls / data.controls.length) * 100) : 0
 
     const alerts = []
     processes.forEach(item => {
@@ -69,25 +90,25 @@ export default function ReportsPage() {
       if (item.procurement_method === 'direct_award') alerts.push({ level: 'medium', title: `${item.reference} por ajuste directo`, detail: 'Confirme se a justificação e a aprovação excepcional estão arquivadas.' })
       if (item.status === 'pending_approval') alerts.push({ level: 'medium', title: `${item.reference} aguarda aprovação`, detail: 'Existe uma decisão pendente no fluxo de aprovação.' })
     })
-    workspace.suppliers.forEach(item => {
+    data.suppliers.forEach(item => {
       const remaining = daysUntil(item.prequalified_until)
       if (item.status === 'prequalified' && remaining !== null && remaining <= 30) alerts.push({ level: remaining < 0 ? 'high' : 'medium', title: `${item.legal_name}: pré‑qualificação ${remaining < 0 ? 'expirada' : 'a expirar'}`, detail: remaining < 0 ? 'Suspenda a utilização ou renove a avaliação.' : `Validade termina dentro de ${remaining} dia(s).` })
     })
-    workspace.contracts.forEach(item => {
+    data.contracts.forEach(item => {
       const remaining = daysUntil(item.end_date)
       if (item.status === 'active' && remaining !== null && remaining <= 30) alerts.push({ level: remaining < 0 ? 'high' : 'medium', title: `${item.contract_number}: vigência ${remaining < 0 ? 'expirada' : 'a terminar'}`, detail: remaining < 0 ? 'Actualize o estado ou formalize a extensão.' : `O contrato termina dentro de ${remaining} dia(s).` })
       item.contract_milestones?.forEach(milestone => {
         if (!['completed', 'cancelled'].includes(milestone.status) && daysUntil(milestone.due_date) < 0) alerts.push({ level: 'high', title: `${item.contract_number}: entrega em atraso`, detail: milestone.title })
       })
     })
-    workspace.financeProjects.forEach(item => {
+    data.financeProjects.forEach(item => {
       if (Number(item.spent_mzn) > Number(item.approved_budget)) alerts.push({ level: 'high', title: `${item.code} com overspent`, detail: `A execução excede o orçamento em ${money(Number(item.spent_mzn) - Number(item.approved_budget))}.` })
     })
-    workspace.controls.forEach(item => {
+    data.controls.forEach(item => {
       if (item.status !== 'compliant' && ['high', 'critical'].includes(item.risk_level)) alerts.push({ level: 'high', title: item.control_name, detail: `${item.area}: controlo de risco ${item.risk_level} ainda não conforme.` })
     })
     return { activeProcesses, mznValue, approvalRate, prequalified, activeContracts, contractedMzn, approvedBudget, committedMzn, spentMzn, complianceScore, alerts }
-  }, [workspace, processes])
+  }, [filteredWorkspace, processes])
 
   const funds = useMemo(() => Object.entries(fundLabels).map(([key, label]) => ({
     key,
@@ -97,6 +118,17 @@ export default function ReportsPage() {
 
   const maxFund = Math.max(1, ...funds.map(item => item.count))
 
+  const exportReport = async () => {
+    setExporting(true); setError('')
+    try {
+      await downloadProcurementReport(format, filteredWorkspace, dashboard)
+    } catch (err) {
+      setError(err.message || 'Não foi possível gerar o relatório.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (!workspace) return <main className="dashboard"><div className="empty">{error || 'A preparar os relatórios…'}</div></main>
   if (!workspace.organization) return <main className="dashboard"><div className="empty"><h2>Sem organização associada</h2></div></main>
 
@@ -105,23 +137,24 @@ export default function ReportsPage() {
       <div><h1>Relatórios</h1><p>Indicadores de procurement, execução e conformidade da organização.</p></div>
       <div className="report-actions">
         <select value={period} onChange={e => setPeriod(e.target.value)}><option value="all">Todo o período</option><option value="3">Últimos 3 meses</option><option value="6">Últimos 6 meses</option><option value="12">Últimos 12 meses</option></select>
-        <button className="primary compact" onClick={() => downloadProcurementReport({ ...workspace, processes })}>Exportar relatório consolidado</button>
+        <select value={format} onChange={e => setFormat(e.target.value)} aria-label="Formato do relatório"><option value="pdf">PDF formal</option><option value="xlsx">Excel detalhado</option><option value="csv">CSV consolidado</option></select>
+        <button className="primary compact" disabled={exporting} onClick={exportReport}>{exporting ? 'A gerar…' : 'Exportar relatório'}</button>
       </div>
     </div>
     {error && <p className="alert error">{error}</p>}
 
     <section className="report-metrics">
       <article><small>PROCESSOS ACTIVOS</small><strong>{dashboard.activeProcesses.length}</strong><span>{money(dashboard.mznValue)} em processos MZN</span></article>
-      <article><small>TAXA DE APROVAÇÃO</small><strong>{dashboard.approvalRate}%</strong><span>{workspace.approvals.length} pedido(s) registado(s)</span></article>
-      <article><small>FORNECEDORES APTOS</small><strong>{dashboard.prequalified}</strong><span>de {workspace.suppliers.length} fornecedor(es)</span></article>
+      <article><small>TAXA DE APROVAÇÃO</small><strong>{dashboard.approvalRate}%</strong><span>{filteredWorkspace.approvals.length} pedido(s) registado(s)</span></article>
+      <article><small>FORNECEDORES APTOS</small><strong>{dashboard.prequalified}</strong><span>de {filteredWorkspace.suppliers.length} fornecedor(es)</span></article>
       <article><small>CONTRATOS ACTIVOS</small><strong>{dashboard.activeContracts.length}</strong><span>{money(dashboard.contractedMzn)} contratados em MZN</span></article>
     </section>
 
     <section className="report-metrics">
-      <article><small>ORÇAMENTO APROVADO</small><strong>{money(dashboard.approvedBudget)}</strong><span>{workspace.financeProjects.length} projecto(s) financeiro(s)</span></article>
+      <article><small>ORÇAMENTO APROVADO</small><strong>{money(dashboard.approvedBudget)}</strong><span>{filteredWorkspace.financeProjects.length} projecto(s) financeiro(s)</span></article>
       <article><small>COMPROMETIDO</small><strong>{money(dashboard.committedMzn)}</strong><span>Compromissos aprovados e registados</span></article>
       <article><small>EXECUTADO</small><strong>{money(dashboard.spentMzn)}</strong><span>{dashboard.approvedBudget ? Math.round((dashboard.spentMzn / dashboard.approvedBudget) * 100) : 0}% do orçamento</span></article>
-      <article><small>CONFORMIDADE</small><strong>{dashboard.complianceScore}%</strong><span>{workspace.controls.length} controlo(s) analisado(s)</span></article>
+      <article><small>CONFORMIDADE</small><strong>{dashboard.complianceScore}%</strong><span>{filteredWorkspace.controls.length} controlo(s) analisado(s)</span></article>
     </section>
 
     <section className="report-grid">
