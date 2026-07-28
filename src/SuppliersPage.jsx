@@ -121,7 +121,7 @@ export default function SuppliersPage() {
   const managePortal = async (action, values = {}) => {
     setSaving(true); setError(''); setMessage('')
     try {
-      const result = await manageSupplierPortalAccess(action, { supplierId: selected.id, ...values })
+      const result = await manageSupplierPortalAccess(action, { supplierId: selected.id, organizationId: workspace.organization.id, ...values })
       setMessage(result.message)
       await refresh(selected.id)
     } catch (err) {
