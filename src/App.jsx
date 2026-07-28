@@ -88,6 +88,7 @@ function Login() {
 
 function SetPassword() {
   const navigate = useNavigate()
+  const supplierInvite = new URLSearchParams(window.location.search).get('portal') === 'supplier'
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
@@ -105,7 +106,7 @@ function SetPassword() {
     setError(''); setLoading(true)
     try {
       await updatePassword(password)
-      navigate('/app', { replace: true })
+      navigate(supplierInvite ? '/portal-fornecedor' : '/app', { replace: true })
     } catch (err) {
       setError(err.message || 'Não foi possível criar a palavra-passe.')
     } finally {
@@ -122,7 +123,7 @@ function SetPassword() {
       <div>
         <p className="eyebrow">CONTA PROTEGIDA</p>
         <h1>Crie a sua palavra-passe.</h1>
-        <p>Conclua a activação da conta para entrar no espaço seguro da sua organização.</p>
+        <p>Conclua a activação da conta para entrar no seu espaço seguro.</p>
       </div>
       <small>Procplus Enterprise · Moçambique</small>
     </section>
