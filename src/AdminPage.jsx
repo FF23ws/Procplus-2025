@@ -17,6 +17,19 @@ const methodLabels = {
   direct_award: 'Ajuste directo',
 }
 
+const exchangeRateSources = [
+  'InfoEuro — Comissão Europeia',
+  'Banco de Moçambique',
+  'Millennium bim',
+  'Standard Bank Moçambique',
+  'BCI — Banco Comercial e de Investimentos',
+  'Absa Bank Moçambique',
+  'Moza Banco',
+  'Ecobank Moçambique',
+  'Access Bank Mozambique',
+  'Taxa contratual ou indicada pelo doador',
+]
+
 const emptyRule = {
   name: '', funding_source: 'internal', min_value: 0, threshold: '', currency: 'MZN',
   procurement_method: 'request_for_quotation', quotations_required: 3, approval_levels: 1,
@@ -95,7 +108,7 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false)
   const [rateForm, setRateForm] = useState({
     baseCurrency: 'USD', quoteCurrency: 'MZN', rate: '', rateType: 'quarterly',
-    source: '', reference: '', validFrom: '', validTo: '',
+    source: exchangeRateSources[0], customSource: '', reference: '', validFrom: '', validTo: '',
   })
   const refresh = async () => setData(await loadAdministration())
   useEffect(() => { refresh().catch(e => setError(e.message)) }, [])
@@ -137,8 +150,10 @@ export default function AdminPage() {
     event.preventDefault(); setSaving(true); setError(''); setMessage('')
     try {
       if (rateForm.baseCurrency === rateForm.quoteCurrency) throw new Error('As moedas de origem e destino devem ser diferentes.')
-      await createExchangeRate(data.organization.id, rateForm)
-      setRateForm({ baseCurrency: 'USD', quoteCurrency: 'MZN', rate: '', rateType: 'quarterly', source: '', reference: '', validFrom: '', validTo: '' })
+      const source = rateForm.source === 'other' ? rateForm.customSource.trim() : rateForm.source
+      if (!source) throw new Error('Indique a outra fonte da taxa cambial.')
+      await createExchangeRate(data.organization.id, { ...rateForm, source })
+      setRateForm({ baseCurrency: 'USD', quoteCurrency: 'MZN', rate: '', rateType: 'quarterly', source: exchangeRateSources[0], customSource: '', reference: '', validFrom: '', validTo: '' })
       setMessage('Taxa cambial registada. O motor já pode utilizá-la dentro do período indicado.')
       await refresh()
     } catch (e) { setError(e.message) } finally { setSaving(false) }
@@ -170,8 +185,12 @@ export default function AdminPage() {
         </div>
         <label>Taxa<input type="number" min="0.00000001" step="0.00000001" value={rateForm.rate} onChange={e => setRateForm({...rateForm,rate:e.target.value})} placeholder="Ex.: MZN por 1 USD/EUR" required /></label>
         <label>Tipo<select value={rateForm.rateType} onChange={e => setRateForm({...rateForm,rateType:e.target.value})}><option value="quarterly">Taxa trimestral</option><option value="tranche">Taxa da tranche</option><option value="contract">Taxa contratual</option><option value="donor">Taxa do doador</option><option value="bank">Taxa bancária</option><option value="manual">Manual</option></select></label>
-        <label>Fonte<input value={rateForm.source} onChange={e => setRateForm({...rateForm,source:e.target.value})} placeholder="Manual, contrato, banco ou comunicação do doador" required /></label>
-        <label>Referência<input value={rateForm.reference} onChange={e => setRateForm({...rateForm,reference:e.target.value})} placeholder="Documento, tranche ou aprovação" /></label>
+        <label>Fonte<select value={rateForm.source} onChange={e => setRateForm({...rateForm,source:e.target.value})}>
+          {exchangeRateSources.map(source => <option key={source} value={source}>{source}</option>)}
+          <option value="other">Outra fonte</option>
+        </select></label>
+        {rateForm.source === 'other' && <label>Nome da fonte<input value={rateForm.customSource} onChange={e => setRateForm({...rateForm,customSource:e.target.value})} placeholder="Indique a instituição ou documento" required /></label>}
+        <label>Referência<input value={rateForm.reference} onChange={e => setRateForm({...rateForm,reference:e.target.value})} placeholder="Boletim, URL, contrato, tranche ou aprovação" required /></label>
         <div className="form-pair"><label>Válida desde<input type="date" value={rateForm.validFrom} onChange={e => setRateForm({...rateForm,validFrom:e.target.value})} required /></label><label>Válida até<input type="date" value={rateForm.validTo} onChange={e => setRateForm({...rateForm,validTo:e.target.value})} /></label></div>
         <button className="primary compact" disabled={saving}>{saving ? 'A guardar…' : 'Registar taxa'}</button>
       </form>
